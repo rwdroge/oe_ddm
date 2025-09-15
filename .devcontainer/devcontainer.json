@@ -1,0 +1,39 @@
+{
+	"name": "OpenEdge Dynamic Data Masking - DevContainer",
+	"dockerComposeFile": "docker-compose.yaml",
+	"service": "devcontainer",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2.12.2": {}
+	},
+
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"extensions.verifySignature": false,
+				"abl.configuration.runtimes.default": "12.8",
+				"abl.configuration.runtimes": [
+					{ "name": "12.8", "path": "/usr/dlc" }
+				],
+				"abl.langServerJavaExecutable": "/opt/java/openjdk/bin/java",
+				"abl.buildMode": 1,
+				"code-runner.executorMap.abl": "_progres -b -pf .devcontainer/devcontainer.pf -p ${file}",
+				"code-runner.languageIdToFileExtensionMap": {
+					"abl": [".p", ".cls"]
+				}
+			},
+			"extensions": [
+				"riversidesoftware.openedge-abl-lsp@prerelease"
+			]
+		}
+	},
+	"mounts": ["source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"],
+	"containerEnv": {
+		"PROPATH": "./src,./bin,${DLC}/tty,${DLC}/tty/OpenEdge.Core.pl,${DLC}/tty/netlib/OpenEdge.Net.pl,${DLC}/tty/OpenEdge.BusinessLogic.pl"
+	},
+	"forwardPorts": [ 3099 ],
+	"initializeCommand": "echo Initialize....",
+	"remoteUser": "openedge",
+	"postStartCommand": "git config --global user.name ${GIT_NAME} && git config --global user.email ${GIT_EMAIL}"	 
+}

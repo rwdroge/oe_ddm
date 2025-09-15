@@ -1,0 +1,13 @@
+{
+    "extensions.verifySignature": false,
+    "abl.configuration.runtimes.default": "12.8",
+    "abl.configuration.runtimes": [
+        { "name": "12.8", "path": "/usr/dlc" }
+    ],
+    "abl.langServerJavaExecutable": "/opt/java/openjdk/bin/java",
+    "abl.buildMode": 1,
+    "code-runner.executorMap.abl": "_progres -b -pf .devcontainer/devcontainer.pf -p ${file}",
+    "code-runner.languageIdToFileExtensionMap": {
+        "abl": [".p", ".cls"]
+    }
+}

@@ -1,0 +1,14 @@
+/bin
+*.cfg
+.builder
+.scripts
+.sonarlint
+.gradle
+.settings
+.gitattributes
+*.log
+*.out
+.devcontainer/windsurf
+.devcontainer/logs
+.devcontainer/feature
+

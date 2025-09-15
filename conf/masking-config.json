@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "description": "Data masking configuration for OpenEdge Dynamic Data Masking",
+  "tables": {
+    "Customer": {
+      "description": "Customer master table",
+      "fields": {
+        "SSN": {
+          "maskType": "SSN_MASK",
+          "preserveFormat": true,
+          "description": "Social Security Number"
+        },
+        "CreditCard": {
+          "maskType": "CREDIT_CARD_MASK",
+          "preserveFormat": true,
+          "description": "Credit card number"
+        },
+        "Email": {
+          "maskType": "EMAIL_MASK",
+          "preserveFormat": false,
+          "description": "Email address"
+        },
+        "Phone": {
+          "maskType": "PHONE_MASK",
+          "preserveFormat": true,
+          "description": "Phone number"
+        },
+        "FirstName": {
+          "maskType": "GENERIC_MASK",
+          "preserveFormat": false,
+          "customPattern": "AAAA",
+          "description": "First name"
+        },
+        "LastName": {
+          "maskType": "GENERIC_MASK",
+          "preserveFormat": false,
+          "customPattern": "AAAAA",
+          "description": "Last name"
+        }
+      }
+    },
+    "Employee": {
+      "description": "Employee information table",
+      "fields": {
+        "SSN": {
+          "maskType": "SSN_MASK",
+          "preserveFormat": true,
+          "description": "Employee SSN"
+        },
+        "Salary": {
+          "maskType": "NUMERIC_RANGE",
+          "preserveFormat": true,
+          "customPattern": "99999.99",
+          "description": "Employee salary"
+        },
+        "BankAccount": {
+          "maskType": "GENERIC_MASK",
+          "preserveFormat": false,
+          "customPattern": "XXXX-XXXX-XXXX",
+          "description": "Bank account number"
+        }
+      }
+    },
+    "Patient": {
+      "description": "Healthcare patient records",
+      "fields": {
+        "MedicalRecordNumber": {
+          "maskType": "GENERIC_MASK",
+          "preserveFormat": true,
+          "customPattern": "MRN-XXXXXX",
+          "description": "Medical record number"
+        },
+        "DateOfBirth": {
+          "maskType": "DATE_SHIFT",
+          "preserveFormat": true,
+          "description": "Patient date of birth"
+        },
+        "InsuranceNumber": {
+          "maskType": "GENERIC_MASK",
+          "preserveFormat": false,
+          "customPattern": "INS-XXXXXXXXX",
+          "description": "Insurance policy number"
+        }
+      }
+    }
+  },
+  "maskingTypes": {
+    "SSN_MASK": {
+      "description": "Masks SSN preserving last 4 digits",
+      "pattern": "XXX-XX-####"
+    },
+    "CREDIT_CARD_MASK": {
+      "description": "Masks credit card preserving first and last 4 digits",
+      "pattern": "####-XXXX-XXXX-####"
+    },
+    "EMAIL_MASK": {
+      "description": "Masks email preserving first character and domain",
+      "pattern": "#***@domain.com"
+    },
+    "PHONE_MASK": {
+      "description": "Masks phone preserving last 4 digits",
+      "pattern": "(XXX) XXX-####"
+    },
+    "GENERIC_MASK": {
+      "description": "Generic masking with custom patterns",
+      "pattern": "User-defined"
+    },
+    "NUMERIC_RANGE": {
+      "description": "Replaces with random number in range",
+      "pattern": "Random within bounds"
+    },
+    "DATE_SHIFT": {
+      "description": "Shifts date by random offset",
+      "pattern": "Date +/- random days"
+    }
+  },
+  "settings": {
+    "preserveNulls": true,
+    "logMaskingOperations": true,
+    "validateMaskedData": true,
+    "backupOriginalData": false
+  }
+}
