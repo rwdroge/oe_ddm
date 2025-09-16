@@ -7,7 +7,7 @@ A comprehensive solution for masking sensitive data in OpenEdge databases to ens
 This project provides a complete data masking framework for OpenEdge ABL applications using:
 
 - DevContainers for consistent development environments
-- Visual Studio Code with AI assistant integrations
+- Windsurf IDE with integrated AI assistant
 - Riverside OpenEdge ABL extension for ABL language support
 - Progress Application Server (PAS) for OpenEdge for web services
 - Dynamic data masking algorithms and patterns
@@ -15,7 +15,6 @@ This project provides a complete data masking framework for OpenEdge ABL applica
 ## 🔒 Data Masking Features
 
 - **Dynamic Masking**: Real-time data masking during query execution
-- **Static Masking**: Batch processing for data warehouse scenarios
 - **Format Preserving**: Maintains data format while masking content
 - **Configurable Rules**: Flexible masking rules per field/table
 - **Audit Trail**: Complete logging of masking operations
@@ -27,16 +26,19 @@ This project provides a complete data masking framework for OpenEdge ABL applica
 oe_ddm/
 ├── .devcontainer/         # DevContainer configuration
 ├── .github/               # GitHub workflows and templates
-├── .kilocode/             # Kilo Code AI assistant configuration
 ├── .vscode/               # VSCode configuration and settings
+├── .windsurf/             # Windsurf AI assistant configuration
 ├── conf/                  # Configuration files for PAS
+├── docs/                  # Documentation files
 ├── license/               # OpenEdge license files
 │   └── placeholder_oe_cfg # Placeholder (replace with progress.cfg)
 ├── src/                   # Source code
 │   ├── ddm/               # Data masking engine
 │   ├── config/            # Configuration management
-│   ├── utils/             # Utility classes
+│   ├── examples/          # Example programs
 │   └── test/              # Unit tests
+├── tests/                 # Test files
+├── web-next/              # Next.js web UI
 ├── .gitignore             # Git ignore rules
 ├── README.md              # This file
 └── openedge-project.json  # Project configuration
@@ -50,13 +52,11 @@ oe_ddm/
 
 ### IDE and Container Runtime Requirements
 
-**Visual Studio Code** - Must be installed to work with this devcontainer setup.
+**Windsurf IDE** - This project is specifically designed for use with the Windsurf IDE and its integrated AI assistant. Windsurf provides enhanced OpenEdge ABL support through the OpenEdge MCP server integration.
 
-**AI Assistants (Optional)** - This project supports multiple AI coding assistants:
-- GitHub Copilot (with OpenEdge MCP server integration)
-- Kilo Code
-- Codeium
-- Other VSCode-compatible AI extensions
+**Alternative IDEs** - While optimized for Windsurf, this project can also work with:
+- Visual Studio Code with DevContainer support
+- Other IDEs with DevContainer compatibility
 
 **Docker Desktop** - Required for this devcontainer setup to work properly. Docker and Docker Compose are minimum requirements.
 
@@ -90,23 +90,20 @@ cd oe_ddm
 
 Copy your `progress.cfg` file to the `license/` folder (replacing the placeholder file)
 
-### Step 3: Open in VSCode
+### Step 3: Open in Windsurf IDE
 
-1. Open this project in Visual Studio Code
-2. Install the "Dev Containers" extension if not already installed
-3. Run command "Dev Containers: Reopen in Container" ([CTRL] + [SHIFT] + [P])
-4. Wait for initialization
+1. Open this project in Windsurf IDE
+2. The DevContainer will automatically be detected and initialized
+3. Wait for the container setup to complete
+4. The integrated AI assistant will have access to OpenEdge documentation through the MCP server
 
-### Step 4: Install Extensions
+### Step 4: Verify Setup
 
-The following extensions should be automatically installed:
-- **OpenEdge ABL** by Riverside Software (required)
-- **Dev Containers** by Microsoft (required)
-
-**Optional AI Assistant Extensions**:
-- **GitHub Copilot** - AI pair programmer with OpenEdge MCP integration
-- **Kilo Code** - AI coding assistant
-- **Codeium** - Free AI code completion
+The following components should be automatically configured:
+- **OpenEdge ABL** extension by Riverside Software (required)
+- **DevContainer** support (built-in)
+- **OpenEdge MCP Server** - Provides AI assistant access to OpenEdge documentation and language reference
+- **Windsurf AI Assistant** - Integrated AI coding assistant with OpenEdge expertise
 
 ## 🚀 Quick Start Guide
 
@@ -140,15 +137,15 @@ curl http://localhost:8080/api/masking/health
 
 ### 3. Web UI Setup
 
-Launch the React administration interface:
+Launch the Next.js administration interface:
 
 ```bash
-cd web
+cd web-next
 npm install
-npm start
+npm run dev -- --port 42137
 ```
 
-The web UI will be available at `http://localhost:3000`
+After that you can open your DDM UI at http://localhost:42137
 
 ## 📚 Examples and Usage
 
@@ -220,9 +217,9 @@ Masking rules are defined in JSON configuration files in the `conf/` directory:
 3. **Utilities** (`src/utils/`)
    - `MaskingLogger.cls` - Audit logging and compliance tracking
 
-4. **Web UI** (`web/`)
-   - React-based administration interface
-   - Material-UI components for modern UX
+4. **Web UI** (`web-next/`)
+   - Next.js-based administration interface
+   - Modern React components with Tailwind CSS
    - Real-time API integration
 
 5. **Examples** (`src/examples/`)
@@ -265,11 +262,11 @@ Audit Logs ← Logger ← Operations
 
 3. **Web UI Deployment**
    ```bash
-   cd web
+   cd web-next
    npm run build
    
    # Deploy to web server (nginx/apache)
-   cp -r build/* /var/www/ddm-admin/
+   cp -r .next/static/* /var/www/ddm-admin/
    ```
 
 ### Security Configuration
@@ -297,7 +294,8 @@ Audit Logs ← Logger ← Operations
 
 - Full ABL language support with syntax highlighting and code completion
 - Integrated debugging capabilities
-- AI-powered code assistance with OpenEdge MCP server integration
+- Windsurf AI assistant with OpenEdge MCP server integration for enhanced ABL development
+- AI-powered code suggestions and documentation lookup
 - Access to OpenEdge database (sports2020 for testing)
 - Automated testing framework
 - Performance monitoring and optimization tools
