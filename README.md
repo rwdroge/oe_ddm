@@ -66,6 +66,7 @@ Before using this devcontainer, you must provide your own OpenEdge license file 
 
 - **4GL Development System** - Required for ABL development and compilation
 - **PASOE for Development** - Required for Progress Application Server for OpenEdge web services
+- **Progress OpenEdge Advanced Security (Progress OEAS)** - Required for Dynamic Data Masking functionality
 - **Database License** - Any of the following:
   - Workgroup Database
   - Enterprise Database
@@ -132,7 +133,7 @@ Start the PASOE server with DDM API:
 $DLC/bin/tcman.sh start
 
 # Test API health
-curl http://localhost:8080/api/masking/health
+curl http://localhost:8810/api/masking/health
 ```
 
 ### 3. Web UI Setup
@@ -168,12 +169,12 @@ oMaskingEngine:MaskTable("Customer").
 
 ```bash
 # Mask a single value
-curl -X POST http://localhost:8080/api/masking/mask-value \
+curl -X POST http://localhost:8810/api/masking/mask-value \
   -H "Content-Type: application/json" \
   -d '{"value": "123-45-6789", "maskType": "SSN_MASK"}'
 
 # Add masking rule
-curl -X POST http://localhost:8080/api/masking/add-rule \
+curl -X POST http://localhost:8810/api/masking/add-rule \
   -H "Content-Type: application/json" \
   -d '{"tableName": "Customer", "fieldName": "SSN", "maskType": "SSN_MASK"}'
 ```
