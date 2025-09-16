@@ -1,0 +1,7 @@
+{
+  "version": "2.0",
+  "serviceName": "ROOT",
+  "handlers": [
+    { "uri": "/api/masking/{action}", "class": "webhandlers.MaskingApiHandler", "enabled": true }
+  ]
+}

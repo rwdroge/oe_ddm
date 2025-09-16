@@ -11,4 +11,5 @@
 .devcontainer/windsurf
 .devcontainer/logs
 .devcontainer/feature
+web/node_modules/
 

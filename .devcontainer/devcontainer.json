@@ -1,11 +1,12 @@
 {
-	"name": "OpenEdge Dynamic Data Masking - DevContainer",
+	"name": "OpenEdge DevContainers - Windsurf",
 	"dockerComposeFile": "docker-compose.yaml",
 	"service": "devcontainer",
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
-	"features": {
+	// feature hack for docker-in-docker for Windsurf: fails to mount: installs 2.12.2 from local install
+  	"features": {
 		"ghcr.io/devcontainers/features/git:1": {},
-		"ghcr.io/devcontainers/features/docker-in-docker:2.12.2": {}
+		"./feature/docker-in-docker": {}
 	},
 
 	"customizations": {
@@ -24,7 +25,7 @@
 				}
 			},
 			"extensions": [
-				"riversidesoftware.openedge-abl-lsp@prerelease"
+				"riversidesoftware.openedge-abl-lsp@1.20.1"
 			]
 		}
 	},

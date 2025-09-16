@@ -108,9 +108,51 @@ The following extensions should be automatically installed:
 - **Kilo Code** - AI coding assistant
 - **Codeium** - Free AI code completion
 
-## Data Masking Configuration
+## 🚀 Quick Start Guide
 
-### Basic Usage
+### 1. ABL Examples
+
+Run the provided examples to see DDM in action:
+
+```bash
+# Basic masking examples
+cd /workspaces/oe_ddm
+_progres -p src/examples/MaskingExample.p
+
+# Advanced scenarios
+_progres -p src/examples/AdvancedMaskingExample.p
+
+# Database integration (requires sports2020 connection)
+_progres -p src/examples/DatabaseMaskingExample.p -db sports2020 -S 10000 -H sports2020-db
+```
+
+### 2. REST API Setup
+
+Start the PASOE server with DDM API:
+
+```bash
+# Start PASOE (adjust paths as needed)
+$DLC/bin/tcman.sh start
+
+# Test API health
+curl http://localhost:8080/api/masking/health
+```
+
+### 3. Web UI Setup
+
+Launch the React administration interface:
+
+```bash
+cd web
+npm install
+npm start
+```
+
+The web UI will be available at `http://localhost:3000`
+
+## 📚 Examples and Usage
+
+### ABL API Usage
 
 ```abl
 /* Initialize the masking engine */
@@ -125,9 +167,23 @@ oMaskingEngine:AddRule("Customer", "CreditCard", "CREDIT_CARD_MASK").
 oMaskingEngine:MaskTable("Customer").
 ```
 
+### REST API Usage
+
+```bash
+# Mask a single value
+curl -X POST http://localhost:8080/api/masking/mask-value \
+  -H "Content-Type: application/json" \
+  -d '{"value": "123-45-6789", "maskType": "SSN_MASK"}'
+
+# Add masking rule
+curl -X POST http://localhost:8080/api/masking/add-rule \
+  -H "Content-Type: application/json" \
+  -d '{"tableName": "Customer", "fieldName": "SSN", "maskType": "SSN_MASK"}'
+```
+
 ### Configuration Files
 
-Masking rules are defined in JSON configuration files in the `src/config/` directory:
+Masking rules are defined in JSON configuration files in the `conf/` directory:
 
 ```json
 {
@@ -147,6 +203,95 @@ Masking rules are defined in JSON configuration files in the `src/config/` direc
   }
 }
 ```
+
+## 🏗️ Architecture Overview
+
+### Components
+
+1. **ABL Core Engine** (`src/ddm/`)
+   - `DataMaskingEngine.cls` - Main orchestration class
+   - `MaskingConfig.cls` - Configuration management
+   - `MaskingAlgorithms.cls` - Masking algorithms implementation
+
+2. **REST API Layer** (`src/api/`)
+   - `MaskingApiHandler.cls` - PASOE webhandler for REST endpoints
+   - Configured in `conf/openedge.properties`
+
+3. **Utilities** (`src/utils/`)
+   - `MaskingLogger.cls` - Audit logging and compliance tracking
+
+4. **Web UI** (`web/`)
+   - React-based administration interface
+   - Material-UI components for modern UX
+   - Real-time API integration
+
+5. **Examples** (`src/examples/`)
+   - `MaskingExample.p` - Basic usage demonstrations
+   - `AdvancedMaskingExample.p` - Complex scenarios and performance testing
+   - `DatabaseMaskingExample.p` - Database integration examples
+
+### Data Flow
+
+```
+Web UI ↔ REST API ↔ ABL Engine ↔ Database
+   ↓         ↓         ↓
+Audit Logs ← Logger ← Operations
+```
+
+## 🔧 Deployment Guide
+
+### Production Deployment
+
+1. **PASOE Configuration**
+   ```bash
+   # Create PASOE instance
+   $DLC/bin/tcman.sh create -t oepas1 ddm-production
+   
+   # Configure properties
+   cp conf/openedge.properties $CATALINA_BASE/conf/
+   
+   # Deploy ABL code
+   cp -r src/* $CATALINA_BASE/webapps/ROOT/WEB-INF/openedge/
+   ```
+
+2. **Database Setup**
+   ```bash
+   # Create production database
+   prodb create ddm-prod empty
+   
+   # Apply schema
+   _progres -db ddm-prod -p setup/create-schema.p
+   ```
+
+3. **Web UI Deployment**
+   ```bash
+   cd web
+   npm run build
+   
+   # Deploy to web server (nginx/apache)
+   cp -r build/* /var/www/ddm-admin/
+   ```
+
+### Security Configuration
+
+- Enable HTTPS for all communications
+- Configure proper authentication in PASOE
+- Set up database security and access controls
+- Implement audit log retention policies
+- Configure network security (firewalls, VPNs)
+
+## 📊 Monitoring and Maintenance
+
+### Health Checks
+- API endpoint: `GET /api/masking/health`
+- Database connectivity monitoring
+- Performance metrics tracking
+
+### Audit and Compliance
+- All operations logged with timestamps
+- User activity tracking
+- Data access audit trails
+- Configurable retention policies
 
 ## Development Features
 

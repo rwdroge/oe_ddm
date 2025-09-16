@@ -9,8 +9,8 @@ services:
     volumes:
       - ../..:/workspaces:cached
       - ${PROGRESS_CFG}:/usr/dlc/progress.cfg
-      #- ./windsurf/.windsurf-server:/home/openedge/.windsurf-server
-      #- ./windsurf/.codeium:/home/openedge/.codeium
+      - ../.windsurf/.windsurf-server:/home/openedge/.windsurf-server
+      - ../.windsurf/.codeium:/home/openedge/.codeium
     ports:
       - ${DEBUG_PORT}:3099
     command: sleep infinity
