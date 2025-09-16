@@ -4,6 +4,7 @@ services:
 
   devcontainer:
     image: ${DEVCONTAINER_IMAGE}:${OE_VERSION}
+    name: devcontainer
     privileged: true
     user: openedge
     volumes:
@@ -13,10 +14,13 @@ services:
       - ../.windsurf/.codeium:/home/openedge/.codeium
     ports:
       - ${DEBUG_PORT}:3099
+      # added port for react project
+      - 42137:42137
     command: sleep infinity
 
   sports2020-db:
     image: ${DB_IMAGE}:${OE_VERSION}
+    name: sports2020-db
     user: openedge
     volumes:
       - ${PROGRESS_CFG}:/usr/dlc/progress.cfg
@@ -27,6 +31,7 @@ services:
       
   sports2020-pas:
     image: ${PAS_IMAGE}:${OE_VERSION}
+    name: sports2020-pas
     user: openedge
     volumes:
       - ${PROGRESS_CFG}:/usr/dlc/progress.cfg

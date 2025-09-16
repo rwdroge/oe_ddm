@@ -8,8 +8,12 @@
 .gitattributes
 *.log
 *.out
-.devcontainer/windsurf
+.windsurf/.codeium/windsurf
+.windsurf/.windsurf-server
+!.windsurf/.codeium/windsurf/mcp_config.json
 .devcontainer/logs
 .devcontainer/feature
-web/node_modules/
+web-next/node_modules/
+web-next/.next/
+
 
