@@ -236,6 +236,82 @@ Web UI ↔ REST API ↔ ABL Engine ↔ Database
 Audit Logs ← Logger ← Operations
 ```
 
+### Infrastructure / Deployment (Dev + Prod-ish)
+
+```mermaid
+flowchart TB
+    subgraph DevMachine["Developer Machine"]
+      BROWSER["Web Browser"]
+      subgraph DevContainer["DevContainer (Windsurf/VS Code)"]
+        NEXT["Next.js Admin UI (web-next)\nPort 42137"]
+        VOL1["Mounted workspace (/workspaces/oe_ddm)"]
+        VOL2["progress.cfg mounted into DLC"]
+      end
+    end
+  
+    subgraph DockerNet["Docker Network"]
+      DB["OpenEdge DB (sports2020-db)\nPorts 10000-10010\nimage: ${DB_IMAGE}:${OE_VERSION}"]
+      PAS["PASOE (sports2020-pas)\nPorts 8810/8811\nimage: ${PAS_IMAGE}:${OE_VERSION}"]
+  
+      subgraph PASVols["PAS Volumes/Config"]
+        SRC["/app/src (mounted from ../src)"]
+        AS_PF["/app/config/as.pf"]
+        OEPROP["openedge.properties\n(/app/pas/as/conf/openedge.properties)"]
+        WEBHANDLER["env PASWEBHANDLERS=/app/src/webhandlers/ROOT.handlers"]
+      end
+    end
+  
+    BROWSER -- "http://localhost:42137" --> NEXT
+    NEXT -- "REST calls to PAS\nNEXT_PUBLIC_API_BASE_URL=http://<host>:8810" --> PAS
+  
+    PAS -- "ABL business logic" --> SRC
+    PAS -- "DataAdmin/DDM API" --> DB
+  
+    DevContainer --- VOL1
+    DevContainer --- VOL2
+  
+    PAS -.-> PASVols
+  
+    classDef infra fill:#eef,stroke:#99c,stroke-width:1px;
+    class DevContainer,DB,PAS,PASVols,SRC,AS_PF,OEPROP,WEBHANDLER,NEXT,DevMachine,DockerNet infra;
+```
+
+### Logical Architecture / Data Flow
+
+```mermaid
+flowchart LR
+    UI["Next.js Admin UI (web-next)\nReact + Tailwind"]
+    REST["REST API (PASOE)\nwebhandlers.MaskingApiHandler"]
+    SERVICE["ABL Service\n(ddm.DataAdminMaskingService)"]
+    DDMAPI["OpenEdge DataAdmin DDM API\nOpenEdge.DataAdmin.*"]
+    DB["OpenEdge Database\nsports2020"]
+  
+    LOGS["Audit/Agent Logs\nPAS/Agent logs, DDM ops"]
+    CONF["conf/openedge.properties\nPAS config"]
+    HANDLERS["src/webhandlers/ROOT.handlers\nhandler routes"]
+    RULES["DDM Rules via API\nSet/Unset mask, Auth Tags"]
+  
+    UI -- "HTTP JSON\n/health, /set-ddm-config,\n/configure-field, ... " --> REST
+    REST -- "calls methods" --> SERVICE
+    SERVICE -- "setDDMConfig(table, field, mask, tag)" --> DDMAPI
+    DDMAPI -- "applies DDM config" --> DB
+  
+    REST -. "reads handler/action params\n(GET/POST/DELETE)" .-> HANDLERS
+    PASOE[("PASOE Runtime")]:::ctrl
+    PASOE -. "boot/config" .-> CONF
+  
+    SERVICE -. "results/status" .-> REST
+    REST -- "JSON response" --> UI
+  
+    DDMAPI -. "operations + status" .-> LOGS
+    REST -. "ops + errors" .-> LOGS
+  
+    UI -. "manages" .-> RULES
+    RULES -. "stored as DB metadata via DDM API" .-> DB
+  
+    classDef ctrl fill:#fef9e7,stroke:#d4ac0d,stroke-width:1px;
+```
+
 ## 🔧 Deployment Guide
 
 ### Production Deployment
