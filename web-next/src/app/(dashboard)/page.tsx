@@ -39,6 +39,27 @@ export default function Dashboard() {
 
   const stats = [
     {
+      name: 'User Management',
+      description: 'Create and manage users for DDM',
+      icon: UserGroupIcon,
+      href: '/user-management',
+      color: 'bg-indigo-500',
+    },
+    {
+      name: 'Role Management',
+      description: 'Create roles and grant them to users',
+      icon: UserGroupIcon,
+      href: '/role-management',
+      color: 'bg-purple-500',
+    },
+    {
+      name: 'Authorization Tags',
+      description: 'Associate authorization tags with roles',
+      icon: TagIcon,
+      href: '/authorization-tags',
+      color: 'bg-green-500',
+    },
+    {
       name: 'Field Masking',
       description: 'Configure data masking for database fields',
       icon: EyeSlashIcon,
@@ -46,18 +67,11 @@ export default function Dashboard() {
       color: 'bg-blue-500',
     },
     {
-      name: 'Authorization Tags',
-      description: 'Manage authorization tags and permissions',
-      icon: TagIcon,
-      href: '/authorization-tags',
-      color: 'bg-green-500',
-    },
-    {
-      name: 'Role Management',
-      description: 'Create and manage security roles',
-      icon: UserGroupIcon,
-      href: '/role-management',
-      color: 'bg-purple-500',
+      name: 'Data Viewer',
+      description: 'Preview mask/auth tag per field by user',
+      icon: EyeSlashIcon,
+      href: '/data-viewer',
+      color: 'bg-teal-500',
     },
     {
       name: 'Monitoring',
@@ -65,6 +79,13 @@ export default function Dashboard() {
       icon: ChartBarIcon,
       href: '/monitoring',
       color: 'bg-orange-500',
+    },
+    {
+      name: 'Audit Logs',
+      description: 'Review audit log entries and activity',
+      icon: ChartBarIcon,
+      href: '/audit-logs',
+      color: 'bg-slate-500',
     },
   ]
 

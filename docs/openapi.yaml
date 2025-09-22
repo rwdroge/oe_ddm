@@ -77,6 +77,102 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /grant-security-admin:
+    get:
+      tags:
+        - User Management
+      summary: Grant security administrator privileges
+      description: Grants security admin privileges to a user
+      operationId: grantSecurityAdmin
+      parameters:
+        - name: userName
+          in: query
+          required: true
+          description: Name of the user to grant security admin
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Security admin granted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantSecurityAdminResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /associate-auth-tag-role:
+    get:
+      tags:
+        - Authorization Tags
+      summary: Reassign an authorization tag to a different role
+      description: Associate (reassign) an authorization tag to a new role
+      operationId: associateAuthTagRole
+      parameters:
+        - name: currentRole
+          in: query
+          required: true
+          description: Current role name
+          schema:
+            type: string
+        - name: authTagName
+          in: query
+          required: true
+          description: Authorization tag name
+          schema:
+            type: string
+        - name: newRole
+          in: query
+          required: true
+          description: New role name to associate with the authorization tag
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authorization tag reassigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssociateAuthTagRoleResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /role-auth-tags:
+    get:
+      tags:
+        - Role Management
+      summary: List authorization tags for a role
+      description: Retrieve all authorization tags associated with the given role
+      operationId: getRoleAuthTags
+      parameters:
+        - name: roleName
+          in: query
+          required: true
+          description: Name of the role
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authorization tags retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAuthTagsResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /configure-field:
     post:
       tags:
@@ -925,6 +1021,41 @@ components:
         path:
           type: string
           description: API path that caused the error
+
+    GrantSecurityAdminResponse:
+      type: object
+      properties:
+        userName:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    AssociateAuthTagRoleResponse:
+      type: object
+      properties:
+        currentRole:
+          type: string
+        authTagName:
+          type: string
+        newRole:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    RoleAuthTagsResponse:
+      type: object
+      properties:
+        roleName:
+          type: string
+        result:
+          type: string
+          description: Serialized list of authorization tags
+        success:
+          type: boolean
 
   securitySchemes:
     basicAuth:

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import { DDMApiService } from '@/services/api'
+import { DDMApiService, getApiErrorMessage, getResponseErrorMessage } from '@/services/api'
 import type { ConfigureFieldRequest, FieldRequest } from '@/types/api'
 import { EyeSlashIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
@@ -61,11 +61,11 @@ export default function FieldMasking() {
         toast.success(`Field masking configured successfully for ${data.tableName}.${data.fieldName}`)
         configureForm.reset()
       } else {
-        toast.error(response.message || 'Failed to configure field masking')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to configure field masking'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Configure field error:', error)
-      toast.error('Failed to configure field masking')
+      toast.error(getApiErrorMessage(error, 'Failed to configure field masking'))
     } finally {
       setLoading(false)
     }
@@ -85,11 +85,11 @@ export default function FieldMasking() {
         toast.success(`Mask removed successfully from ${data.tableName}.${data.fieldName}`)
         removeForm.reset()
       } else {
-        toast.error(response.message || 'Failed to remove mask')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to remove mask'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Remove mask error:', error)
-      toast.error('Failed to remove mask')
+      toast.error(getApiErrorMessage(error, 'Failed to remove mask'))
     } finally {
       setLoading(false)
     }
@@ -154,6 +154,68 @@ export default function FieldMasking() {
           </CardHeader>
           <CardContent>
             <form onSubmit={configureForm.handleSubmit(onConfigureSubmit)} className="space-y-6">
+              {/* Demo Presets */}
+              <div className="space-y-2">
+                <div className="text-sm text-gray-700 font-medium">Demo Presets</div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      configureForm.setValue('tableName', 'Customer')
+                      configureForm.setValue('fieldName', 'state')
+                      configureForm.setValue('maskingType', 'FULL')
+                      configureForm.setValue('maskingValue', 'D:')
+                      configureForm.setValue('authTag', '#DDM_SEE_ContactInfo')
+                    }}
+                  >
+                    Default mask: Customer.state (D:)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      configureForm.setValue('tableName', 'Customer')
+                      configureForm.setValue('fieldName', 'city')
+                      configureForm.setValue('maskingType', 'FULL')
+                      configureForm.setValue('maskingValue', 'L:MASKED')
+                      configureForm.setValue('authTag', '#DDM_SEE_ContactInfo')
+                    }}
+                  >
+                    Literal mask: Customer.city (L:MASKED)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      configureForm.setValue('tableName', 'Customer')
+                      configureForm.setValue('fieldName', 'phone')
+                      configureForm.setValue('maskingType', 'PARTIAL')
+                      configureForm.setValue('maskingValue', 'P:0,X,4')
+                      configureForm.setValue('authTag', '#DDM_SEE_ContactInfo')
+                    }}
+                  >
+                    Partial mask: Customer.phone (P:0,X,4)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      configureForm.setValue('tableName', 'Customer')
+                      configureForm.setValue('fieldName', 'address')
+                      configureForm.setValue('maskingType', 'FULL')
+                      configureForm.setValue('maskingValue', 'N:')
+                      configureForm.setValue('authTag', '#DDM_SEE_ContactInfo')
+                    }}
+                  >
+                    Null mask: Customer.address (N:)
+                  </Button>
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

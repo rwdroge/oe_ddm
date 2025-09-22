@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { DDMApiService } from '@/services/api'
+import { DDMApiService, getApiErrorMessage, getResponseErrorMessage } from '@/services/api'
 import type { DDMConfigRequest, FieldRequest } from '@/types/api'
 import { CogIcon, PlusIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
@@ -67,11 +67,11 @@ export default function Configuration() {
         toast.success(`DDM configuration set for ${data.tableName}.${data.fieldName}`)
         setForm.reset()
       } else {
-        toast.error(response.message || 'Failed to set DDM configuration')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to set DDM configuration'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Set DDM config error:', error)
-      toast.error('Failed to set DDM configuration')
+      toast.error(getApiErrorMessage(error, 'Failed to set DDM configuration'))
     } finally {
       setLoading(false)
     }
@@ -91,11 +91,11 @@ export default function Configuration() {
         toast.success(`DDM configuration removed from ${data.tableName}.${data.fieldName}`)
         removeForm.reset()
       } else {
-        toast.error(response.message || 'Failed to remove DDM configuration')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to remove DDM configuration'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Remove DDM config error:', error)
-      toast.error('Failed to remove DDM configuration')
+      toast.error(getApiErrorMessage(error, 'Failed to remove DDM configuration'))
     } finally {
       setLoading(false)
     }
@@ -114,12 +114,12 @@ export default function Configuration() {
         setQueryResult(response)
         toast.success(`Configuration retrieved for ${data.tableName}.${data.fieldName}`)
       } else {
-        toast.error('Failed to retrieve configuration')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to retrieve configuration'))
         setQueryResult(null)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Query config error:', error)
-      toast.error('Failed to retrieve configuration')
+      toast.error(getApiErrorMessage(error, 'Failed to retrieve configuration'))
       setQueryResult(null)
     } finally {
       setLoading(false)

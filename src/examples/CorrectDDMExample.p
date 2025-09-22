@@ -19,7 +19,7 @@ DEFINE VARIABLE oMaskingService AS DataAdminMaskingService NO-UNDO.
 DEFINE VARIABLE lSuccess AS LOGICAL NO-UNDO.
 
 /* Initialize the masking service for the current database */
-oMaskingService = NEW DataAdminMaskingService("sports2000").
+oMaskingService = NEW DataAdminMaskingService("sports2020").
 
 /* Example 1: Set DDM configuration for Customer.CustNum field */
 MESSAGE "Setting DDM configuration for Customer.CustNum field...".

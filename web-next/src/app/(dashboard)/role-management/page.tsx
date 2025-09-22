@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { DDMApiService } from '@/services/api'
+import { DDMApiService, getApiErrorMessage, getResponseErrorMessage } from '@/services/api'
 import type { RoleRequest, GrantRoleRequest, DeleteGrantedRoleRequest } from '@/types/api'
 import { UserGroupIcon, PlusIcon, UserPlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
@@ -37,6 +37,31 @@ type RevokeRoleForm = z.infer<typeof revokeRoleSchema>
 export default function RoleManagement() {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'create' | 'delete' | 'grant' | 'revoke'>('create')
+  const [roles, setRoles] = useState<{ name: string; count: number }[]>([])
+  const [roleSearch, setRoleSearch] = useState('')
+  const [sortByCountDesc, setSortByCountDesc] = useState(false)
+
+  const loadRoles = async () => {
+    try {
+      const res = await DDMApiService.getRolesWithCounts()
+      const list = (res.result || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((item) => {
+          const [name, countStr] = item.split('|')
+          return { name, count: Number(countStr ?? 0) }
+        })
+      setRoles(list)
+    } catch (e) {
+      console.error('Failed to load roles', e)
+      setRoles([])
+    }
+  }
+
+  useEffect(() => {
+    loadRoles()
+  }, [])
 
   const createForm = useForm<CreateRoleForm>({
     resolver: zodResolver(createRoleSchema),
@@ -66,12 +91,13 @@ export default function RoleManagement() {
       if (response.success) {
         toast.success(`Role "${data.roleName}" created successfully`)
         createForm.reset()
+        loadRoles()
       } else {
-        toast.error(response.message || 'Failed to create role')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to create role'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create role error:', error)
-      toast.error('Failed to create role')
+      toast.error(getApiErrorMessage(error, 'Failed to create role'))
     } finally {
       setLoading(false)
     }
@@ -89,12 +115,13 @@ export default function RoleManagement() {
       if (response.success) {
         toast.success(`Role "${data.roleName}" deleted successfully`)
         deleteForm.reset()
+        loadRoles()
       } else {
-        toast.error(response.message || 'Failed to delete role')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to delete role'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Delete role error:', error)
-      toast.error('Failed to delete role')
+      toast.error(getApiErrorMessage(error, 'Failed to delete role'))
     } finally {
       setLoading(false)
     }
@@ -113,12 +140,14 @@ export default function RoleManagement() {
       if (response.success) {
         toast.success(`Role "${data.roleName}" granted to user "${data.userName}"`)
         grantForm.reset()
+        // granting doesn't change roles, but might be useful to keep list fresh
+        loadRoles()
       } else {
-        toast.error(response.message || 'Failed to grant role')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to grant role'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Grant role error:', error)
-      toast.error('Failed to grant role')
+      toast.error(getApiErrorMessage(error, 'Failed to grant role'))
     } finally {
       setLoading(false)
     }
@@ -136,12 +165,13 @@ export default function RoleManagement() {
       if (response.success) {
         toast.success(`Role grant revoked successfully`)
         revokeForm.reset()
+        loadRoles()
       } else {
-        toast.error(response.message || 'Failed to revoke role grant')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to revoke role grant'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Revoke role error:', error)
-      toast.error('Failed to revoke role grant')
+      toast.error(getApiErrorMessage(error, 'Failed to revoke role grant'))
     } finally {
       setLoading(false)
     }
@@ -149,6 +179,43 @@ export default function RoleManagement() {
 
   return (
     <div className="space-y-8">
+      {/* Existing Roles Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Existing Roles</CardTitle>
+          <CardDescription>All roles configured in the system</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-3">
+            <Input
+              placeholder="Search roles..."
+              value={roleSearch}
+              onChange={(e) => setRoleSearch(e.target.value)}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => setSortByCountDesc((v) => !v)}>
+              Sort by users {sortByCountDesc ? '▼' : '▲'}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={loadRoles}>
+              Refresh
+            </Button>
+          </div>
+          {roles.length === 0 ? (
+            <p className="text-sm text-gray-600">No roles found.</p>
+          ) : (
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+              {roles
+                .filter((r) => r.name.toLowerCase().includes(roleSearch.toLowerCase()))
+                .sort((a, b) => (sortByCountDesc ? b.count - a.count : a.name.localeCompare(b.name)))
+                .map((r) => (
+                  <li key={r.name} className="rounded border bg-white px-3 py-2 flex items-center justify-between">
+                    <span>{r.name}</span>
+                    <span className="text-xs text-gray-600">{r.count} users</span>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">

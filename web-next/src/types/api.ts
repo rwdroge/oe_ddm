@@ -22,6 +22,7 @@ export interface DDMConfigResponse {
   authTag: string;
   success: boolean;
   message: string;
+  error?: string;
 }
 
 export interface ConfigureFieldRequest {
@@ -40,6 +41,7 @@ export interface ConfigureFieldResponse {
   authTag: string;
   success: boolean;
   message: string;
+  error?: string;
 }
 
 export interface FieldRequest {
@@ -57,6 +59,7 @@ export interface AuthTagResponse {
   authTagName: string;
   success: boolean;
   message: string;
+  error?: string;
 }
 
 export interface UpdateAuthTagRequest {
@@ -71,6 +74,7 @@ export interface UpdateAuthTagResponse {
   newName: string;
   success: boolean;
   message: string;
+  error?: string;
 }
 
 export interface RoleRequest {
@@ -81,6 +85,7 @@ export interface RoleResponse {
   roleName: string;
   success: boolean;
   message: string;
+  error?: string;
 }
 
 export interface GrantRoleRequest {
@@ -93,6 +98,7 @@ export interface GrantRoleResponse {
   roleName: string;
   success: boolean;
   message: string;
+  error?: string;
 }
 
 export interface DeleteGrantedRoleRequest {
@@ -103,6 +109,7 @@ export interface DeleteGrantedRoleResponse {
   grantId: string;
   success: boolean;
   message: string;
+  error?: string;
 }
 
 export interface CreateUserRequest {
@@ -118,6 +125,7 @@ export interface UserResponse {
   userName: string;
   success: boolean;
   message: string;
+  error?: string;
 }
 
 export interface MaskAndAuthTagResponse {
@@ -126,6 +134,7 @@ export interface MaskAndAuthTagResponse {
   userName?: string;
   result: string;
   success: boolean;
+  error?: string;
 }
 
 export interface AuthTagRoleResponse {
@@ -133,12 +142,14 @@ export interface AuthTagRoleResponse {
   authTagName: string;
   result: string;
   success: boolean;
+  error?: string;
 }
 
 export interface UserRoleGrantsResponse {
   userName: string;
   result: string;
   success: boolean;
+  error?: string;
 }
 
 export interface OperationResponse {
@@ -146,6 +157,59 @@ export interface OperationResponse {
   fieldName?: string;
   success: boolean;
   message: string;
+  error?: string;
+}
+
+export interface AssociateAuthTagRoleRequest {
+  currentRoleName: string;
+  authTagName: string;
+  newRoleName: string;
+}
+
+export interface AssociateAuthTagRoleResponse {
+  currentRoleName: string;
+  authTagName: string;
+  newRoleName: string;
+  success: boolean;
+  message: string;
+  error?: string;
+}
+
+export interface RolesListResponse {
+  result: string; // comma-separated role names
+  success: boolean;
+  error?: string;
+}
+
+export interface RoleAuthTagsListResponse {
+  roleName: string;
+  result: string; // comma-separated auth tag names for the role
+  success: boolean;
+  error?: string;
+}
+
+export interface UsersListResponse {
+  result: string; // comma-separated user names
+  success: boolean;
+  error?: string;
+}
+
+export interface AuthTagsListResponse {
+  result: string; // comma-separated authorization tag names
+  success: boolean;
+  error?: string;
+}
+
+export interface RolesWithCountsResponse {
+  result: string; // comma-separated items: role|count
+  success: boolean;
+  error?: string;
+}
+
+export interface AuthTagsWithRolesResponse {
+  result: string; // comma-separated items: tag|role
+  success: boolean;
+  error?: string;
 }
 
 export interface ErrorResponse {

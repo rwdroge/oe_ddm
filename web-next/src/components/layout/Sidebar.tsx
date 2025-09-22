@@ -1,8 +1,10 @@
+
 'use client'
 
-import { useState } from 'react'
+import { useState, type ComponentType, type SVGProps } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import type { Route } from 'next'
 import { cn } from '@/lib/utils'
 import {
   HomeIcon,
@@ -17,16 +19,27 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 
+// Logical flow for DDM administration
+// 1) Dashboard overview
+// 2) Configure global settings
+// 3) Define access (roles), auth tags, and then masking
+// 4) Manage users and security admin
+// 5) Operations & insights (viewer, monitoring, audit)
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Field Masking', href: '/field-masking', icon: EyeSlashIcon },
-  { name: 'Authorization Tags', href: '/authorization-tags', icon: TagIcon },
-  { name: 'Role Management', href: '/role-management', icon: UserGroupIcon },
-  { name: 'User Management', href: '/user-management', icon: UserGroupIcon },
   { name: 'Configuration', href: '/configuration', icon: CogIcon },
+  { name: 'Role Management', href: '/role-management', icon: UserGroupIcon },
+  { name: 'Authorization Tags', href: '/authorization-tags', icon: TagIcon },
+  { name: 'Field Masking', href: '/field-masking', icon: EyeSlashIcon },
+  { name: 'User Management', href: '/user-management', icon: UserGroupIcon },
+  { name: 'Data Viewer', href: '/data-viewer', icon: DocumentTextIcon },
   { name: 'Monitoring', href: '/monitoring', icon: ChartBarIcon },
   { name: 'Audit Logs', href: '/audit-logs', icon: DocumentTextIcon },
-]
+] as const satisfies readonly {
+  name: string
+  href: Route
+  icon: ComponentType<SVGProps<SVGSVGElement>>
+}[]
 
 export default function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(false)

@@ -56,6 +56,133 @@ CLASS ddm.DataAdminMaskingService:
     END METHOD.
 
     /*------------------------------------------------------------------------------
+     Purpose: List roles with number of granted users as role|count comma-separated
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC CHARACTER GetRolesWithUserCounts():
+        DEFINE VARIABLE oRoles     AS OpenEdge.DataAdmin.IRoleSet NO-UNDO.
+        DEFINE VARIABLE oRole      AS OpenEdge.DataAdmin.IRole NO-UNDO.
+        DEFINE VARIABLE oIterator  AS OpenEdge.DataAdmin.Lang.Collections.IIterator NO-UNDO.
+        DEFINE VARIABLE oGrants    AS OpenEdge.DataAdmin.IGrantedRoleSet NO-UNDO.
+        DEFINE VARIABLE oIter2     AS OpenEdge.DataAdmin.Lang.Collections.IIterator NO-UNDO.
+        DEFINE VARIABLE iCount     AS INTEGER NO-UNDO.
+        DEFINE VARIABLE cResult    AS CHARACTER NO-UNDO.
+
+        /* Only list DDM roles */
+        oRoles = oDataAdminService:GetRoles("IsDDM eq 'true'").
+        IF VALID-OBJECT(oRoles) THEN DO:
+            oIterator = oRoles:Iterator().
+            DO WHILE oIterator:HasNext():
+                oRole = CAST(oIterator:Next(), OpenEdge.DataAdmin.IRole).
+                IF VALID-OBJECT(oRole) THEN DO:
+                    iCount = 0.
+                    oGrants = oDataAdminService:GetGrantedRoles(SUBSTITUTE("RoleName eq '&1'", oRole:Name)).
+                    IF VALID-OBJECT(oGrants) THEN DO:
+                        oIter2 = oGrants:Iterator().
+                        DO WHILE oIter2:HasNext():
+                            /* iterate to count */
+                            oIter2:Next().
+                            iCount = iCount + 1.
+                        END.
+                    END.
+                    IF cResult = "" THEN cResult = SUBSTITUTE("&1|&2", oRole:Name, iCount).
+                    ELSE cResult = cResult + ", " + SUBSTITUTE("&1|&2", oRole:Name, iCount).
+                END.
+            END.
+        END.
+        RETURN cResult.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List all authorization tags with their role as tag|role comma-separated
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC CHARACTER GetAllAuthTagsWithRoles():
+        DEFINE VARIABLE oTags     AS OpenEdge.DataAdmin.IAuthTagSet NO-UNDO.
+        DEFINE VARIABLE oTag      AS OpenEdge.DataAdmin.IAuthTag NO-UNDO.
+        DEFINE VARIABLE oIterator AS OpenEdge.DataAdmin.Lang.Collections.IIterator NO-UNDO.
+        DEFINE VARIABLE cResult   AS CHARACTER NO-UNDO.
+
+        oTags = oDataAdminService:GetAuthTags("").
+        IF VALID-OBJECT(oTags) THEN DO:
+            oIterator = oTags:Iterator().
+            DO WHILE oIterator:HasNext():
+                oTag = CAST(oIterator:Next(), OpenEdge.DataAdmin.IAuthTag).
+                IF VALID-OBJECT(oTag) THEN DO:
+                    IF cResult = "" THEN cResult = SUBSTITUTE("&1|&2", oTag:Name, oTag:RoleName).
+                    ELSE cResult = cResult + ", " + SUBSTITUTE("&1|&2", oTag:Name, oTag:RoleName).
+                END.
+            END.
+        END.
+
+        RETURN cResult.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Associate an existing authorization tag to a new role (reassign)
+     Notes:   Deletes the tag from current role and recreates under the new role
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC LOGICAL AssociateAuthTagToRole(INPUT pcCurrentRole AS CHARACTER,
+                                                 INPUT pcAuthTagName AS CHARACTER,
+                                                 INPUT pcNewRole     AS CHARACTER):
+        
+        DEFINE VARIABLE lSuccess AS LOGICAL NO-UNDO.
+        DEFINE VARIABLE oTag     AS OpenEdge.DataAdmin.IAuthTag NO-UNDO.
+        
+        /* Get the tag under the current role */
+        oTag = oDataAdminService:GetAuthTag(pcCurrentRole, pcAuthTagName).
+        
+        IF NOT VALID-OBJECT(oTag) THEN
+            RETURN FALSE.
+        
+        /* Remove existing */
+        lSuccess = oDataAdminService:DeleteAuthTag(pcCurrentRole, pcAuthTagName).
+        IF NOT lSuccess THEN RETURN FALSE.
+        
+        /* Create new tag under new role */
+        oTag = oDataAdminService:NewAuthTag(pcAuthTagName).
+        oTag:RoleName = pcNewRole.
+        lSuccess = oDataAdminService:CreateAuthTag(oTag).
+        
+        RETURN lSuccess.
+        
+        CATCH oError AS Progress.Lang.Error:
+            UNDO, THROW NEW Progress.Lang.AppError(
+                SUBSTITUTE("Failed to associate tag &1 from role &2 to &3: &4",
+                          pcAuthTagName, pcCurrentRole, pcNewRole, oError:GetMessage(1))).
+        END CATCH.
+        
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Grant security administrator privileges to a user
+     Notes:   Uses DataAdminService:getAdministrator and updateAdministrator
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC LOGICAL GrantSecurityAdmin(INPUT pcUserName AS CHARACTER):
+        
+        DEFINE VARIABLE lSuccess        AS LOGICAL        NO-UNDO.
+        DEFINE VARIABLE oAdministrator  AS OpenEdge.DataAdmin.IAdministrator NO-UNDO.
+        
+        /* Get current administrator config */
+        oAdministrator = oDataAdminService:getAdministrator().
+        
+        IF NOT VALID-OBJECT(oAdministrator) THEN
+            UNDO, THROW NEW Progress.Lang.AppError("Unable to retrieve administrator configuration").
+        
+        /* Assign the given user as a security admin */
+        oAdministrator:administrators = pcUserName.
+        
+        lSuccess = oDataAdminService:updateAdministrator(oAdministrator).
+        
+        RETURN lSuccess.
+        
+        CATCH oError AS Progress.Lang.Error:
+            UNDO, THROW NEW Progress.Lang.AppError(
+                SUBSTITUTE("Failed to grant security admin to &1: &2", 
+                          pcUserName, oError:GetMessage(1))).
+        END CATCH.
+        
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
      Purpose: Set DDM configuration for a specific field
      Notes:   Uses OpenEdge 12.8 setDDMConfig method - signature: (table, field, maskval, authtag)
     ------------------------------------------------------------------------------*/
@@ -210,11 +337,6 @@ CLASS ddm.DataAdminMaskingService:
         
         RETURN lSuccess.
         
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to create authorization tag &1 in domain &2: &3", 
-                          pcAuthTagName, pcDomainName, oError:GetMessage(1))).
-        END CATCH.
         
     END METHOD.
 
@@ -232,11 +354,6 @@ CLASS ddm.DataAdminMaskingService:
         
         RETURN lSuccess.
         
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to delete authorization tag &1 from domain &2: &3", 
-                          pcAuthTagName, pcDomainName, oError:GetMessage(1))).
-        END CATCH.
         
     END METHOD.
 
@@ -267,12 +384,7 @@ CLASS ddm.DataAdminMaskingService:
             lSuccess = FALSE.
         
         RETURN lSuccess.
-        
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to update authorization tag &1 in domain &2: &3", 
-                          pcAuthTagName, pcDomainName, oError:GetMessage(1))).
-        END CATCH.
+       
         
     END METHOD.
 
@@ -287,17 +399,18 @@ CLASS ddm.DataAdminMaskingService:
         
         /* Create new Role object using the service's factory method */
         oRole = oDataAdminService:NewRole(pcRoleName).
+        /* Mark as DDM role */
+        IF VALID-OBJECT(oRole) THEN DO:
+            /* Some OpenEdge versions expose IsDDM on IRole */
+            oRole:IsDDM = TRUE.
+        END.
         
         /* Create the role */
         lSuccess = oDataAdminService:CreateRole(oRole).
         
         RETURN lSuccess.
         
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to create role &1: &2", 
-                          pcRoleName, oError:GetMessage(1))).
-        END CATCH.
+        
         
     END METHOD.
 
@@ -313,12 +426,6 @@ CLASS ddm.DataAdminMaskingService:
         lSuccess = oDataAdminService:DeleteRole(pcRoleName).
         
         RETURN lSuccess.
-        
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to delete role &1: &2", 
-                          pcRoleName, oError:GetMessage(1))).
-        END CATCH.
         
     END METHOD.
 
@@ -350,12 +457,6 @@ CLASS ddm.DataAdminMaskingService:
         
         RETURN lSuccess.
         
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to grant role &1 to user &2: &3", 
-                          pcRoleName, pcUserName, oError:GetMessage(1))).
-        END CATCH.
-        
     END METHOD.
 
     /*------------------------------------------------------------------------------
@@ -370,12 +471,6 @@ CLASS ddm.DataAdminMaskingService:
         lSuccess = oDataAdminService:DeleteGrantedRole(pcGrantId).
         
         RETURN lSuccess.
-        
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to delete granted role &1: &2", 
-                          pcGrantId, oError:GetMessage(1))).
-        END CATCH.
         
     END METHOD.
 
@@ -399,13 +494,13 @@ CLASS ddm.DataAdminMaskingService:
         lSuccess = oDataAdminService:CreateUser(oUser).
         
         RETURN lSuccess.
-        
+        /*
         CATCH oError AS Progress.Lang.Error:
             UNDO, THROW NEW Progress.Lang.AppError(
                 SUBSTITUTE("Failed to create user &1: &2", 
                           pcUserName, oError:GetMessage(1))).
         END CATCH.
-        
+        */
     END METHOD.
 
     /*------------------------------------------------------------------------------
@@ -420,12 +515,6 @@ CLASS ddm.DataAdminMaskingService:
         lSuccess = oDataAdminService:DeleteUser(pcUserName).
         
         RETURN lSuccess.
-        
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to delete user &1: &2", 
-                          pcUserName, oError:GetMessage(1))).
-        END CATCH.
         
     END METHOD.
 
@@ -459,12 +548,6 @@ CLASS ddm.DataAdminMaskingService:
         
         RETURN cResult.
         
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to get DDM config for field &1.&2: &3", 
-                          pcTableName, pcFieldName, oError:GetMessage(1))).
-        END CATCH.
-        
     END METHOD.
 
     /*------------------------------------------------------------------------------
@@ -488,11 +571,6 @@ CLASS ddm.DataAdminMaskingService:
         
         RETURN cResult.
         
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to get auth tag &1 from domain &2: &3", 
-                          pcAuthTagName, pcDomainName, oError:GetMessage(1))).
-        END CATCH.
         
     END METHOD.
 
@@ -528,11 +606,6 @@ CLASS ddm.DataAdminMaskingService:
         
         RETURN cResult.
         
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to get role grants for user &1: &2", 
-                          pcUserName, oError:GetMessage(1))).
-        END CATCH.
         
     END METHOD.
 
@@ -546,5 +619,112 @@ CLASS ddm.DataAdminMaskingService:
             DELETE OBJECT oDataAdminService.
             
     END DESTRUCTOR.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List all roles as a comma-separated string
+     Notes:   Iterates IRoleSet and concatenates names
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC CHARACTER GetAllRoles():
+        DEFINE VARIABLE oRoles     AS OpenEdge.DataAdmin.IRoleSet NO-UNDO.
+        DEFINE VARIABLE oRole      AS OpenEdge.DataAdmin.IRole NO-UNDO.
+        DEFINE VARIABLE oIterator  AS OpenEdge.DataAdmin.Lang.Collections.IIterator NO-UNDO.
+        DEFINE VARIABLE cResult    AS CHARACTER NO-UNDO.
+
+        /* Only list DDM roles */
+        oRoles = oDataAdminService:GetRoles("IsDDM='true'").
+        IF VALID-OBJECT(oRoles) THEN DO:
+            oIterator = oRoles:Iterator().
+            DO WHILE oIterator:HasNext():
+                oRole = CAST(oIterator:Next(), OpenEdge.DataAdmin.IRole).
+                IF VALID-OBJECT(oRole) THEN DO:
+                    IF cResult = "" THEN cResult = oRole:Name.
+                    ELSE cResult = cResult + ", " + oRole:Name.
+                END.
+            END.
+        END.
+        RETURN cResult.
+
+        
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List all authorization tags across all roles as a comma-separated string
+     Notes:   Iterates IAuthTagSet with no filter
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC CHARACTER GetAllAuthTags():
+        DEFINE VARIABLE oTags     AS OpenEdge.DataAdmin.IAuthTagSet NO-UNDO.
+        DEFINE VARIABLE oTag      AS OpenEdge.DataAdmin.IAuthTag NO-UNDO.
+        DEFINE VARIABLE oIterator AS OpenEdge.DataAdmin.Lang.Collections.IIterator NO-UNDO.
+        DEFINE VARIABLE cResult   AS CHARACTER NO-UNDO.
+
+        oTags = oDataAdminService:GetAuthTags("").
+        IF VALID-OBJECT(oTags) THEN DO:
+            oIterator = oTags:Iterator().
+            DO WHILE oIterator:HasNext():
+                oTag = CAST(oIterator:Next(), OpenEdge.DataAdmin.IAuthTag).
+                IF VALID-OBJECT(oTag) THEN DO:
+                    IF cResult = "" THEN cResult = oTag:Name.
+                    ELSE cResult = cResult + ", " + oTag:Name.
+                END.
+            END.
+        END.
+
+        RETURN cResult.
+
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List all users as a comma-separated string
+     Notes:   Iterates IUserSet and concatenates names
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC CHARACTER GetAllUsers():
+        DEFINE VARIABLE oUsers     AS OpenEdge.DataAdmin.IUserSet NO-UNDO.
+        DEFINE VARIABLE oUser      AS OpenEdge.DataAdmin.IUser NO-UNDO.
+        DEFINE VARIABLE oIterator  AS OpenEdge.DataAdmin.Lang.Collections.IIterator NO-UNDO.
+        DEFINE VARIABLE cResult    AS CHARACTER NO-UNDO.
+
+        oUsers = oDataAdminService:GetUsers("").
+        IF VALID-OBJECT(oUsers) THEN DO:
+            oIterator = oUsers:Iterator().
+            DO WHILE oIterator:HasNext():
+                oUser = CAST(oIterator:Next(), OpenEdge.DataAdmin.IUser).
+                IF VALID-OBJECT(oUser) THEN DO:
+                    IF cResult = "" THEN cResult = oUser:Name.
+                    ELSE cResult = cResult + ", " + oUser:Name.
+                END.
+            END.
+        END.
+        RETURN cResult.
+
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List auth tags for a role as a comma-separated string
+     Notes:   Iterates IAuthTagSet
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC CHARACTER GetAuthTagsForRole(INPUT pcRoleName AS CHARACTER):
+        DEFINE VARIABLE oTags     AS OpenEdge.DataAdmin.IAuthTagSet NO-UNDO.
+        DEFINE VARIABLE oTag      AS OpenEdge.DataAdmin.IAuthTag NO-UNDO.
+        DEFINE VARIABLE oIterator AS OpenEdge.DataAdmin.Lang.Collections.IIterator NO-UNDO.
+        DEFINE VARIABLE cResult   AS CHARACTER NO-UNDO.
+
+        /* filter by RoleName eq 'pcRoleName' */
+        oTags = oDataAdminService:GetAuthTags(SUBSTITUTE("RoleName eq '&1'", pcRoleName)).
+
+        IF VALID-OBJECT(oTags) THEN DO:
+            oIterator = oTags:Iterator().
+            DO WHILE oIterator:HasNext():
+                oTag = CAST(oIterator:Next(), OpenEdge.DataAdmin.IAuthTag).
+                IF VALID-OBJECT(oTag) THEN DO:
+                    IF cResult = "" THEN cResult = oTag:Name.
+                    ELSE cResult = cResult + ", " + oTag:Name.
+                END.
+            END.
+        END.
+
+        RETURN cResult.
+
+        
+    END METHOD.
 
 END CLASS.

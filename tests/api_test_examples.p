@@ -106,6 +106,19 @@ MESSAGE SUBSTITUTE("Create Role Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
 
+/* Test 6b: Create Another Role (for reassignment scenarios) */
+MESSAGE "=== Test 6b: Create Role (DataReviewer) ===" VIEW-AS ALERT-BOX.
+
+oJsonRequest = NEW JsonObject().
+oJsonRequest:Add("roleName", "DataReviewer").
+
+oRequest = RequestBuilder:Post(cBaseUrl + "/create-role", oJsonRequest):Request.
+oResponse = oHttpClient:Execute(oRequest).
+
+MESSAGE SUBSTITUTE("Create Role (Reviewer) Response:~nStatus: &1~nContent: &2",
+                  oResponse:StatusCode,
+                  oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
+
 /* Test 7: Create User */
 MESSAGE "=== Test 7: Create User ===" VIEW-AS ALERT-BOX.
 
@@ -144,6 +157,16 @@ MESSAGE SUBSTITUTE("User Role Grants Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
 
+/* Test 9b: Grant Security Admin (GET) */
+MESSAGE "=== Test 9b: Grant Security Admin ===" VIEW-AS ALERT-BOX.
+
+oRequest = RequestBuilder:Get(cBaseUrl + "/grant-security-admin?userName=testuser"):Request.
+oResponse = oHttpClient:Execute(oRequest).
+
+MESSAGE SUBSTITUTE("Grant Security Admin Response:~nStatus: &1~nContent: &2",
+                  oResponse:StatusCode,
+                  oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
+
 /* Test 10: Get Auth Tag and Role */
 MESSAGE "=== Test 10: Get Auth Tag and Role ===" VIEW-AS ALERT-BOX.
 
@@ -151,6 +174,16 @@ oRequest = RequestBuilder:Get(cBaseUrl + "/auth-tag-role?domainName=TestDomain&a
 oResponse = oHttpClient:Execute(oRequest).
 
 MESSAGE SUBSTITUTE("Auth Tag Role Response:~nStatus: &1~nContent: &2",
+                  oResponse:StatusCode,
+                  oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
+
+/* Test 10b: Get Role Auth Tags */
+MESSAGE "=== Test 10b: Get Role Auth Tags ===" VIEW-AS ALERT-BOX.
+
+oRequest = RequestBuilder:Get(cBaseUrl + "/role-auth-tags?roleName=DataAnalyst"):Request.
+oResponse = oHttpClient:Execute(oRequest).
+
+MESSAGE SUBSTITUTE("Role Auth Tags Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
 
@@ -248,6 +281,17 @@ oRequest = RequestBuilder:Delete(cBaseUrl + "/delete-user", oJsonRequest):Reques
 oResponse = oHttpClient:Execute(oRequest).
 
 MESSAGE SUBSTITUTE("Delete User Response:~nStatus: &1~nContent: &2",
+                  oResponse:StatusCode,
+                  oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
+
+/* Test 19: Associate Auth Tag to New Role */
+MESSAGE "=== Test 19: Associate Auth Tag to New Role ===" VIEW-AS ALERT-BOX.
+
+/* This reassigns the 'CONFIDENTIAL' tag in 'TestDomain' from DataAnalyst to DataReviewer. */
+oRequest = RequestBuilder:Get(cBaseUrl + "/associate-auth-tag-role?currentRole=DataAnalyst&authTagName=CONFIDENTIAL&newRole=DataReviewer"):Request.
+oResponse = oHttpClient:Execute(oRequest).
+
+MESSAGE SUBSTITUTE("Associate Auth Tag Role Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
 

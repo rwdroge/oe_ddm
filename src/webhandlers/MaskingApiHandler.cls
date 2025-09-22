@@ -68,11 +68,82 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
                 oJsonResponse:Add("version", "1.0").
                 oJsonResponse:Add("database", cDatabaseName).
                 oJsonResponse:Add("timestamp", ISO-DATE(NOW)).
+        oJsonResponse:Add("path", poRequest:PathInfo).
                 cResponseBody = oJsonResponse:GetJsonText().
                 oResponse:StatusCode = 200.
                 oResponse:ContentType = "application/json".
                 oResponse:ContentLength = LENGTH(cResponseBody).
             END.
+
+            WHEN "roles-with-counts" THEN DO:
+                /* List all roles with their granted user counts */
+                HandleGetRolesWithCounts(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    oResponse:ContentLength = LENGTH(ttResponseData.jsonResponse).
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                    oResponse:ContentLength = LENGTH(cResponseBody).
+                END.
+            END.
+
+            WHEN "auth-tags-with-roles" THEN DO:
+                /* List all authorization tags with associated roles */
+                HandleGetAllAuthTagsWithRoles(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    oResponse:ContentLength = LENGTH(ttResponseData.jsonResponse).
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                    oResponse:ContentLength = LENGTH(cResponseBody).
+                END.
+            END.
+
+            WHEN "grant-security-admin" THEN DO:
+                /* Grant security administrator privileges to a user */
+                HandleGrantSecurityAdmin(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                END.
+            END.
+
+            WHEN "associate-auth-tag-role" THEN DO:
+                /* Reassign an auth tag to a different role */
+                HandleAssociateAuthTagRole(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                END.
+            END.
+
+            
             
             WHEN "ddm-config" THEN DO:
                 /* Get DDM configuration for a specific field */
@@ -146,6 +217,78 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
                 END.
             END.
             
+            WHEN "roles" THEN DO:
+                /* List all roles */
+                HandleGetRoles(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    oResponse:ContentLength = LENGTH(ttResponseData.jsonResponse).
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                    oResponse:ContentLength = LENGTH(cResponseBody).
+                END.
+            END.
+
+            WHEN "users" THEN DO:
+                /* List all users */
+                HandleGetUsers(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    oResponse:ContentLength = LENGTH(ttResponseData.jsonResponse).
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                    oResponse:ContentLength = LENGTH(cResponseBody).
+                END.
+            END.
+
+            WHEN "auth-tags" THEN DO:
+                /* List all authorization tags */
+                HandleGetAllAuthTags(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    oResponse:ContentLength = LENGTH(ttResponseData.jsonResponse).
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                    oResponse:ContentLength = LENGTH(cResponseBody).
+                END.
+            END.
+
+            WHEN "role-auth-tags" THEN DO:
+                /* List authorization tags for a given role */
+                HandleGetRoleAuthTags(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    oResponse:ContentLength = LENGTH(ttResponseData.jsonResponse).
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                    oResponse:ContentLength = LENGTH(cResponseBody).
+                END.
+            END.
+            
             OTHERWISE DO:
                 /* Invalid endpoint */
                 oJsonResponse = NEW JsonObject().
@@ -163,6 +306,317 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         oWriter:Close().
         
         RETURN oResponse:StatusCode.
+        
+        CATCH oError AS Progress.Lang.Error:
+            RETURN HandleError(poRequest, oError).
+        END CATCH.
+
+        FINALLY:
+            DELETE OBJECT oJsonResponse NO-ERROR.
+            DELETE OBJECT oResponse NO-ERROR.
+            DELETE OBJECT oWriter NO-ERROR.
+        END FINALLY.
+        
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Handle list roles with counts
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetRolesWithCounts(INPUT poRequest AS IWebRequest,
+                                                 OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cResult       AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess      AS LOGICAL   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        cResult = oMaskingService:GetRolesWithUserCounts().
+        lSuccess = TRUE.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("result", cResult).
+        oJsonResponse:Add("success", lSuccess).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
+
+        CATCH oError AS Progress.Lang.Error:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Handle list all auth tags with roles
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetAllAuthTagsWithRoles(INPUT poRequest AS IWebRequest,
+                                                      OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cResult       AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess      AS LOGICAL   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        cResult = oMaskingService:GetAllAuthTagsWithRoles().
+        lSuccess = TRUE.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("result", cResult).
+        oJsonResponse:Add("success", lSuccess).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
+    END METHOD.
+    /*------------------------------------------------------------------------------
+     Purpose: Handle associate (reassign) an authorization tag via POST body
+     Notes:   Accepts JSON with currentRoleName, authTagName, newRoleName
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleAssociateAuthTagRolePost(INPUT poRequest AS IWebRequest,
+                                                       OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonRequest   AS JsonObject NO-UNDO.
+        DEFINE VARIABLE oJsonResponse  AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cCurrentRole   AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cAuthTagName   AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cNewRole       AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess       AS LOGICAL   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        /* Parse request body */
+        oJsonRequest = CAST(poRequest:Entity, JsonObject).
+        cCurrentRole = oJsonRequest:GetCharacter("currentRoleName").
+        cAuthTagName = oJsonRequest:GetCharacter("authTagName").
+        cNewRole     = oJsonRequest:GetCharacter("newRoleName").
+
+        IF cCurrentRole = "" OR cCurrentRole = ? OR
+           cAuthTagName = "" OR cAuthTagName = ? OR
+           cNewRole = "" OR cNewRole = ? THEN DO:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("error", "currentRoleName, authTagName and newRoleName are required").
+            oJsonResponse:Add("success", FALSE).
+
+            ttResponseData.statusCode = 400.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+            RETURN.
+        END.
+
+        /* Perform the association (reassignment) with error capture */
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:AssociateAuthTagToRole(cCurrentRole, cAuthTagName, cNewRole).
+        END.
+
+        /* Build response */
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("currentRoleName", cCurrentRole).
+        oJsonResponse:Add("authTagName", cAuthTagName).
+        oJsonResponse:Add("newRoleName", cNewRole).
+        oJsonResponse:Add("success", lSuccess).
+        oJsonResponse:Add("message", IF lSuccess THEN "Authorization tag reassigned successfully"
+                                           ELSE "Failed to reassign authorization tag").
+
+        ttResponseData.statusCode = IF lSuccess THEN 200 ELSE 400.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
+
+        CATCH oError AS Progress.Lang.Error:
+            /* Consolidated error handling for this method */
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+            oJsonResponse:Add("currentRoleName", cCurrentRole).
+            oJsonResponse:Add("authTagName", cAuthTagName).
+            oJsonResponse:Add("newRoleName", cNewRole).
+
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Handle list all roles
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetRoles(INPUT poRequest AS IWebRequest,
+                                       OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cResult       AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess      AS LOGICAL   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        /* Wrap service call to ensure JSON 500 on errors */
+        DO ON ERROR UNDO, THROW:
+            cResult = oMaskingService:GetAllRoles().
+        END.
+        lSuccess = TRUE.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("result", cResult).
+        oJsonResponse:Add("success", lSuccess).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Handle list all authorization tags
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetAllAuthTags(INPUT poRequest AS IWebRequest,
+                                             OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cResult       AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess      AS LOGICAL   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        /* Wrap service call to ensure JSON 500 on errors */
+        DO ON ERROR UNDO, THROW:
+            cResult = oMaskingService:GetAllAuthTags().
+        END.
+        lSuccess = TRUE.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("result", cResult).
+        oJsonResponse:Add("success", lSuccess).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Handle list all users
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetUsers(INPUT poRequest AS IWebRequest,
+                                       OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cResult       AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess      AS LOGICAL   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        /* Wrap service call to ensure JSON 500 on errors */
+        DO ON ERROR UNDO, THROW:
+            cResult = oMaskingService:GetAllUsers().
+        END.
+        lSuccess = TRUE.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("result", cResult).
+        oJsonResponse:Add("success", lSuccess).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Handle list auth tags for a role
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetRoleAuthTags(INPUT poRequest AS IWebRequest,
+                                              OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cRoleName     AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cResult       AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess      AS LOGICAL   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        cRoleName = poRequest:URI:GetQueryValue("roleName").
+        IF cRoleName = "" OR cRoleName = ? THEN DO:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("error", "roleName is required").
+            oJsonResponse:Add("success", FALSE).
+            ttResponseData.statusCode = 400.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+            RETURN.
+        END.
+
+        /* Wrap service call to ensure JSON 500 on errors */
+        DO ON ERROR UNDO, THROW:
+            cResult = oMaskingService:GetAuthTagsForRole(cRoleName).
+        END.
+        lSuccess = TRUE.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("roleName", cRoleName).
+        oJsonResponse:Add("result", cResult).
+        oJsonResponse:Add("success", lSuccess).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Handle grant security admin request
+     Notes:   Uses DataAdminMaskingService:GrantSecurityAdmin
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGrantSecurityAdmin(INPUT poRequest AS IWebRequest,
+                                                 OUTPUT TABLE ttResponseData):
+        
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cUserName     AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess      AS LOGICAL   NO-UNDO.
+        
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+        
+        /* Read from query parameters for GET endpoint */
+        cUserName = poRequest:URI:GetQueryValue("userName").
+        
+        IF cUserName = "" OR cUserName = ? THEN DO:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("error", "userName is required").
+            oJsonResponse:Add("success", FALSE).
+            
+            ttResponseData.statusCode = 400.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+            RETURN.
+        END.
+        
+        /* Grant security admin */
+        lSuccess = oMaskingService:GrantSecurityAdmin(cUserName).
+        
+        /* Build response */
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("userName", cUserName).
+        oJsonResponse:Add("success", lSuccess).
+        oJsonResponse:Add("message", IF lSuccess THEN "Security admin granted" ELSE "Failed to grant security admin").
+        
+        ttResponseData.statusCode = IF lSuccess THEN 200 ELSE 400.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
         
     END METHOD.
 
@@ -314,6 +768,22 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
             WHEN "create-user" THEN DO:
                 /* Create user */
                 HandleCreateUser(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                END.
+            END.
+
+            WHEN "associate-auth-tag-role" THEN DO:
+                /* Reassign an auth tag to a different role (POST) */
+                HandleAssociateAuthTagRolePost(poRequest, OUTPUT TABLE ttResponseData).
                 FIND FIRST ttResponseData NO-ERROR.
                 IF AVAILABLE ttResponseData THEN DO:
                     oResponse:StatusCode = ttResponseData.statusCode.
@@ -511,7 +981,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cAuthTag = oJsonRequest:GetCharacter("authTag").
         
         /* Set DDM configuration using the actual OpenEdge API */
-        lSuccess = oMaskingService:SetFieldDDMConfig(cTableName, cFieldName, cMaskValue, cAuthTag).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:SetFieldDDMConfig(cTableName, cFieldName, cMaskValue, cAuthTag).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -558,7 +1030,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cAuthTag = oJsonRequest:GetCharacter("authTag").
         
         /* Configure field masking */
-        lSuccess = oMaskingService:ConfigureFieldMasking(cTableName, cFieldName, cMaskingType, cMaskingValue, cAuthTag).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:ConfigureFieldMasking(cTableName, cFieldName, cMaskingType, cMaskingValue, cAuthTag).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -600,7 +1074,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cFieldName = oJsonRequest:GetCharacter("fieldName").
         
         /* Remove DDM configuration */
-        lSuccess = oMaskingService:RemoveFieldDDMConfig(cTableName, cFieldName).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:RemoveFieldDDMConfig(cTableName, cFieldName).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -627,34 +1103,13 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         DEFINE VARIABLE cTableName AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cFieldName AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cUserName AS CHARACTER NO-UNDO.
-        define variable cQueryString as character no-undo.
         EMPTY TEMP-TABLE ttResponseData.
         CREATE ttResponseData.
-        
-        /* Get parameters from query string */
-        
-        cQueryString = poRequest:GetContextValue("QUERY_STRING").
-        DEFINE VARIABLE cPair       AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE ix          AS INTEGER   NO-UNDO.
-        DEFINE VARIABLE cKey        AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cValue      AS CHARACTER NO-UNDO. 
 
-
-      REPEAT ix = 1 TO NUM-ENTRIES(cQueryString,'&'):
-          cPair = ENTRY(ix,cQueryString,'&').
-          cKey = ENTRY(1,cPair,'=').
-          cValue = ENTRY(2,cPair,'=').
-        
-          if cKey = "tableName" 
-          then 
-            cTableName = cValue.
-          else if cKey = "fieldName" 
-          then 
-            cFieldName = cValue.
-          else if cKey = "userName" 
-          then 
-            cUserName = cValue.
-        end.
+        /* Get parameters from query string via URI helper */
+        cTableName = poRequest:URI:GetQueryValue("tableName").
+        cFieldName = poRequest:URI:GetQueryValue("fieldName").
+        cUserName  = poRequest:URI:GetQueryValue("userName").
         IF cTableName = "" OR cTableName = ? OR cFieldName = "" OR cFieldName = ? THEN DO:
             oJsonResponse = NEW JsonObject().
             oJsonResponse:Add("error", "tableName and fieldName parameters required").
@@ -692,31 +1147,15 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         DEFINE VARIABLE cTableName AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cFieldName AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cUserName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cQueryString AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cResult AS CHARACTER NO-UNDO.
         
         EMPTY TEMP-TABLE ttResponseData.
         CREATE ttResponseData.
         
-        /* Get parameters from query string */
-        cQueryString = poRequest:GetContextValue("QUERY_STRING").
-        DEFINE VARIABLE cPair AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE ix AS INTEGER NO-UNDO.
-        DEFINE VARIABLE cKey AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cValue AS CHARACTER NO-UNDO.
-
-        REPEAT ix = 1 TO NUM-ENTRIES(cQueryString,'&'):
-            cPair = ENTRY(ix,cQueryString,'&').
-            cKey = ENTRY(1,cPair,'=').
-            cValue = ENTRY(2,cPair,'=').
-            
-            IF cKey = "tableName" THEN 
-                cTableName = cValue.
-            ELSE IF cKey = "fieldName" THEN 
-                cFieldName = cValue.
-            ELSE IF cKey = "userName" THEN 
-                cUserName = cValue.
-        END.
+        /* Get parameters from query string via URI helper */
+        cTableName = poRequest:URI:GetQueryValue("tableName").
+        cFieldName = poRequest:URI:GetQueryValue("fieldName").
+        cUserName  = poRequest:URI:GetQueryValue("userName").
         
         IF cTableName = "" OR cTableName = ? OR cFieldName = "" OR cFieldName = ? THEN DO:
             oJsonResponse = NEW JsonObject().
@@ -758,29 +1197,14 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
         DEFINE VARIABLE cDomainName AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cAuthTagName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cQueryString AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cResult AS CHARACTER NO-UNDO.
         
         EMPTY TEMP-TABLE ttResponseData.
         CREATE ttResponseData.
         
-        /* Get parameters from query string */
-        cQueryString = poRequest:GetContextValue("QUERY_STRING").
-        DEFINE VARIABLE cPair AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE ix AS INTEGER NO-UNDO.
-        DEFINE VARIABLE cKey AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cValue AS CHARACTER NO-UNDO.
-
-        REPEAT ix = 1 TO NUM-ENTRIES(cQueryString,'&'):
-            cPair = ENTRY(ix,cQueryString,'&').
-            cKey = ENTRY(1,cPair,'=').
-            cValue = ENTRY(2,cPair,'=').
-            
-            IF cKey = "domainName" THEN 
-                cDomainName = cValue.
-            ELSE IF cKey = "authTagName" THEN 
-                cAuthTagName = cValue.
-        END.
+        /* Get parameters from query string via URI helper */
+        cDomainName = poRequest:URI:GetQueryValue("domainName").
+        cAuthTagName = poRequest:URI:GetQueryValue("authTagName").
         
         IF cDomainName = "" OR cDomainName = ? OR cAuthTagName = "" OR cAuthTagName = ? THEN DO:
             oJsonResponse = NEW JsonObject().
@@ -820,27 +1244,13 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         
         DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
         DEFINE VARIABLE cUserName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cQueryString AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cResult AS CHARACTER NO-UNDO.
         
         EMPTY TEMP-TABLE ttResponseData.
         CREATE ttResponseData.
         
-        /* Get parameters from query string */
-        cQueryString = poRequest:GetContextValue("QUERY_STRING").
-        DEFINE VARIABLE cPair AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE ix AS INTEGER NO-UNDO.
-        DEFINE VARIABLE cKey AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cValue AS CHARACTER NO-UNDO.
-
-        REPEAT ix = 1 TO NUM-ENTRIES(cQueryString,'&'):
-            cPair = ENTRY(ix,cQueryString,'&').
-            cKey = ENTRY(1,cPair,'=').
-            cValue = ENTRY(2,cPair,'=').
-            
-            IF cKey = "userName" THEN 
-                cUserName = cValue.
-        END.
+        /* Get parameters from query string via URI helper */
+        cUserName = poRequest:URI:GetQueryValue("userName").
         
         IF cUserName = "" OR cUserName = ? THEN DO:
             oJsonResponse = NEW JsonObject().
@@ -893,7 +1303,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cFieldName = oJsonRequest:GetCharacter("fieldName").
         
         /* Unset mask */
-        lSuccess = oMaskingService:UnsetMaskForField(cTableName, cFieldName).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:UnsetMaskForField(cTableName, cFieldName).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -932,7 +1344,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cFieldName = oJsonRequest:GetCharacter("fieldName").
         
         /* Unset authorization tag */
-        lSuccess = oMaskingService:UnsetAuthTagForField(cTableName, cFieldName).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:UnsetAuthTagForField(cTableName, cFieldName).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -971,7 +1385,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cAuthTagName = oJsonRequest:GetCharacter("authTagName").
         
         /* Create authorization tag */
-        lSuccess = oMaskingService:CreateAuthorizationTag(cDomainName, cAuthTagName).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:CreateAuthorizationTag(cDomainName, cAuthTagName).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -984,6 +1400,19 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         ttResponseData.contentType = "application/json".
         ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
         ttResponseData.success = lSuccess.
+
+        CATCH oError AS Progress.Lang.Error:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("domainName", cDomainName).
+            oJsonResponse:Add("authTagName", cAuthTagName).
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
         
     END METHOD.
 
@@ -1012,7 +1441,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cNewName = oJsonRequest:GetCharacter("newName").
         
         /* Update authorization tag */
-        lSuccess = oMaskingService:UpdateAuthorizationTag(cDomainName, cAuthTagName, cNewName).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:UpdateAuthorizationTag(cDomainName, cAuthTagName, cNewName).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -1052,7 +1483,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cAuthTagName = oJsonRequest:GetCharacter("authTagName").
         
         /* Delete authorization tag */
-        lSuccess = oMaskingService:DeleteAuthorizationTag(cDomainName, cAuthTagName).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:DeleteAuthorizationTag(cDomainName, cAuthTagName).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -1089,8 +1522,10 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cRoleName = oJsonRequest:GetCharacter("roleName").
         
         /* Create role */
-        lSuccess = oMaskingService:CreateRole(cRoleName).
-        
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:CreateRole(cRoleName).
+        END.
+
         /* Build response */
         oJsonResponse = NEW JsonObject().
         oJsonResponse:Add("roleName", cRoleName).
@@ -1101,6 +1536,18 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         ttResponseData.contentType = "application/json".
         ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
         ttResponseData.success = lSuccess.
+
+        CATCH oError AS Progress.Lang.Error:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("roleName", cRoleName).
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
         
     END METHOD.
 
@@ -1163,7 +1610,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cRoleName = oJsonRequest:GetCharacter("roleName").
         
         /* Grant role to user */
-        lSuccess = oMaskingService:GrantRoleToUser(cUserName, cRoleName).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:GrantRoleToUser(cUserName, cRoleName).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -1200,7 +1649,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cGrantId = oJsonRequest:GetCharacter("grantId").
         
         /* Delete granted role */
-        lSuccess = oMaskingService:DeleteGrantedRole(cGrantId).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:DeleteGrantedRole(cGrantId).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -1238,7 +1689,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cPassword = oJsonRequest:GetCharacter("password").
         
         /* Create user */
-        lSuccess = oMaskingService:CreateUser(cUserName, cPassword).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:CreateUser(cUserName, cPassword).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -1250,6 +1703,18 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         ttResponseData.contentType = "application/json".
         ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
         ttResponseData.success = lSuccess.
+
+        CATCH oError AS Progress.Lang.Error:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("userName", cUserName).
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
         
     END METHOD.
 
@@ -1274,7 +1739,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cUserName = oJsonRequest:GetCharacter("userName").
         
         /* Delete user */
-        lSuccess = oMaskingService:DeleteUser(cUserName).
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:DeleteUser(cUserName).
+        END.
         
         /* Build response */
         oJsonResponse = NEW JsonObject().
@@ -1541,11 +2008,23 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         oWriter = NEW WebResponseWriter(oResponse).
         
         
-        /* Build error response */
+        /* Build error response with more detail */
         oJsonResponse = NEW JsonObject().
         oJsonResponse:Add("success", FALSE).
         oJsonResponse:Add("error", poError:GetMessage(1)).
+        oJsonResponse:Add("errorType", poError:GetClass():TypeName).
         oJsonResponse:Add("timestamp", ISO-DATE(NOW)).
+
+        /* Include additional chained messages when present */
+        IF poError:NumMessages > 1 THEN DO:
+            DEFINE VARIABLE i AS INTEGER NO-UNDO.
+            DEFINE VARIABLE oDetails AS JsonArray NO-UNDO.
+            oDetails = NEW JsonArray().
+            DO i = 1 TO poError:NumMessages:
+                oDetails:Add(poError:GetMessage(i)).
+            END.
+            oJsonResponse:Add("details", oDetails).
+        END.
         
         oResponse:StatusCode = 500.
         oResponse:ContentType = "application/json".
@@ -1554,8 +2033,77 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         oWriter:Flush().
         oWriter:Close().
         
-        RETURN 0.
-        
+        RETURN 500.
+    
+    END METHOD.
+
+        /*------------------------------------------------------------------------------
+     Purpose: Handle associate (reassign) an authorization tag to a different role
+     Notes:   Uses DataAdminMaskingService:AssociateAuthTagToRole
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleAssociateAuthTagRole(INPUT poRequest AS IWebRequest,
+                                                   OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse  AS JsonObject NO-UNDO.
+        DEFINE VARIABLE cCurrentRole   AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cAuthTagName   AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cNewRole       AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess       AS LOGICAL   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        /* Read from query parameters for GET endpoint */
+        cCurrentRole = poRequest:URI:GetQueryValue("currentRole").
+        cAuthTagName = poRequest:URI:GetQueryValue("authTagName").
+        cNewRole     = poRequest:URI:GetQueryValue("newRole").
+
+        IF cCurrentRole = "" OR cCurrentRole = ? OR
+           cAuthTagName = "" OR cAuthTagName = ? OR
+           cNewRole = "" OR cNewRole = ? THEN DO:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("error", "currentRole, authTagName and newRole are required").
+            oJsonResponse:Add("success", FALSE).
+
+            ttResponseData.statusCode = 400.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+            RETURN.
+        END.
+
+        /* Perform the association (reassignment) with error capture */
+        DO ON ERROR UNDO, THROW:
+            lSuccess = oMaskingService:AssociateAuthTagToRole(cCurrentRole, cAuthTagName, cNewRole).
+        END.
+
+        /* Build response */
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("currentRole", cCurrentRole).
+        oJsonResponse:Add("authTagName", cAuthTagName).
+        oJsonResponse:Add("newRole", cNewRole).
+        oJsonResponse:Add("success", lSuccess).
+        oJsonResponse:Add("message", IF lSuccess THEN "Authorization tag reassigned successfully"
+                                           ELSE "Failed to reassign authorization tag").
+
+        ttResponseData.statusCode = IF lSuccess THEN 200 ELSE 400.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = lSuccess.
+
+        CATCH oError AS Progress.Lang.Error:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+            oJsonResponse:Add("currentRole", cCurrentRole).
+            oJsonResponse:Add("authTagName", cAuthTagName).
+            oJsonResponse:Add("newRole", cNewRole).
+
+            /* Internal errors should be 500 */
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
     END METHOD.
 
     

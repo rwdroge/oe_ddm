@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { DDMApiService } from '@/services/api'
+import { DDMApiService, getApiErrorMessage, getResponseErrorMessage } from '@/services/api'
 import type { CreateUserRequest, UserRequest, UserRoleGrantsResponse } from '@/types/api'
 import { UserIcon, PlusIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 const createUserSchema = z.object({
   userName: z.string().min(1, 'User name is required'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  grantSecurityAdmin: z.boolean().optional().default(false),
 })
 
 const deleteUserSchema = z.object({
@@ -29,10 +30,79 @@ type CreateUserForm = z.infer<typeof createUserSchema>
 type DeleteUserForm = z.infer<typeof deleteUserSchema>
 type QueryUserForm = z.infer<typeof queryUserSchema>
 
+// Inline component to grant security admin to an existing user
+function GrantSecAdminForm() {
+  const [loading, setLoading] = useState(false)
+  const schema = z.object({ userName: z.string().min(1, 'User name is required') })
+  type FormData = z.infer<typeof schema>
+  const form = useForm<FormData>({ resolver: zodResolver(schema) })
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      setLoading(true)
+      const res = await DDMApiService.grantSecurityAdmin({ userName: data.userName })
+      if (res.success) {
+        toast.success(`Granted security admin to "${data.userName}"`)
+        form.reset()
+      } else {
+        toast.error(getResponseErrorMessage(res as any, 'Failed to grant security admin'))
+      }
+    } catch (e: any) {
+      console.error(e)
+      toast.error(getApiErrorMessage(e, 'Failed to grant security admin'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">User Name</label>
+          <Input
+            {...form.register('userName')}
+            placeholder="e.g., AdminUser"
+            className={form.formState.errors.userName ? 'border-red-500' : ''}
+          />
+          {form.formState.errors.userName && (
+            <p className="mt-1 text-sm text-red-600">{form.formState.errors.userName.message}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Granting...' : 'Grant Security Admin'}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 export default function UserManagement() {
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<'create' | 'delete' | 'query'>('create')
   const [userGrants, setUserGrants] = useState<UserRoleGrantsResponse | null>(null)
+  const [userType, setUserType] = useState<'ADMIN' | 'GENERAL'>('GENERAL')
+  const [users, setUsers] = useState<string[]>([])
+
+  const loadUsers = async () => {
+    try {
+      const res = await DDMApiService.getUsers()
+      const list = (res.result || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      setUsers(list)
+    } catch (e) {
+      console.error('Failed to load users', e)
+      setUsers([])
+    }
+  }
+
+  useEffect(() => {
+    loadUsers()
+  }, [])
 
   const createForm = useForm<CreateUserForm>({
     resolver: zodResolver(createUserSchema),
@@ -58,13 +128,23 @@ export default function UserManagement() {
       
       if (response.success) {
         toast.success(`User "${data.userName}" created successfully`)
+        // Optionally grant security admin after creation
+        if (data.grantSecurityAdmin) {
+          const grantRes = await DDMApiService.grantSecurityAdmin({ userName: data.userName })
+          if (grantRes.success) {
+            toast.success(`Granted security admin to "${data.userName}"`)
+          } else {
+            toast.error(`Failed to grant security admin: ${getResponseErrorMessage(grantRes as any, '')}`)
+          }
+        }
         createForm.reset()
+        loadUsers()
       } else {
-        toast.error(response.message || 'Failed to create user')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to create user'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create user error:', error)
-      toast.error('Failed to create user')
+      toast.error(getApiErrorMessage(error, 'Failed to create user'))
     } finally {
       setLoading(false)
     }
@@ -82,12 +162,13 @@ export default function UserManagement() {
       if (response.success) {
         toast.success(`User "${data.userName}" deleted successfully`)
         deleteForm.reset()
+        loadUsers()
       } else {
-        toast.error(response.message || 'Failed to delete user')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to delete user'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Delete user error:', error)
-      toast.error('Failed to delete user')
+      toast.error(getApiErrorMessage(error, 'Failed to delete user'))
     } finally {
       setLoading(false)
     }
@@ -102,12 +183,12 @@ export default function UserManagement() {
         setUserGrants(response)
         toast.success(`Role grants retrieved for user "${data.userName}"`)
       } else {
-        toast.error('Failed to retrieve user role grants')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to retrieve user role grants'))
         setUserGrants(null)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Query user error:', error)
-      toast.error('Failed to retrieve user role grants')
+      toast.error(getApiErrorMessage(error, 'Failed to retrieve user role grants'))
       setUserGrants(null)
     } finally {
       setLoading(false)
@@ -116,6 +197,29 @@ export default function UserManagement() {
 
   return (
     <div className="space-y-8">
+      {/* Existing Users Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Existing Users</CardTitle>
+          <CardDescription>All users in the system</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {users.length === 0 ? (
+            <p className="text-sm text-gray-600">No users found.</p>
+          ) : (
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+              {users.map((u) => (
+                <li key={u} className="rounded border bg-white px-3 py-2">{u}</li>
+              ))}
+            </ul>
+          )}
+          <div className="mt-3">
+            <Button type="button" variant="outline" size="sm" onClick={loadUsers}>
+              Refresh
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
@@ -212,6 +316,26 @@ export default function UserManagement() {
                 </div>
               </div>
 
+              {/* User Type selector to speed up demo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">User Type</label>
+                  <select
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
+                    value={userType}
+                    onChange={(e) => {
+                      const val = e.target.value === 'ADMIN' ? 'ADMIN' : 'GENERAL'
+                      setUserType(val as 'ADMIN' | 'GENERAL')
+                      createForm.setValue('grantSecurityAdmin', val === 'ADMIN')
+                    }}
+                  >
+                    <option value="GENERAL">General User (no admin)</option>
+                    <option value="ADMIN">Admin User (grant security admin)</option>
+                  </select>
+                  <p className="mt-2 text-xs text-gray-500">Selecting Admin will automatically enable the grant security admin option below.</p>
+                </div>
+              </div>
+
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                 <div className="flex">
                   <div className="flex-shrink-0">
@@ -231,6 +355,19 @@ export default function UserManagement() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Grant Security Admin toggle */}
+              <div className="flex items-center gap-3">
+                <input
+                  id="grantSecurityAdmin"
+                  type="checkbox"
+                  className="h-4 w-4 border-gray-300 rounded"
+                  {...createForm.register('grantSecurityAdmin')}
+                />
+                <label htmlFor="grantSecurityAdmin" className="text-sm text-gray-700">
+                  Grant security admin privileges to this user after creation
+                </label>
               </div>
 
               <div className="flex justify-end">
@@ -374,6 +511,19 @@ export default function UserManagement() {
           )}
         </div>
       )}
+
+      {/* Inline action: Grant Security Admin to existing user */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Grant Security Admin (Existing User)</CardTitle>
+          <CardDescription>
+            Elevate an existing user to security administrator. This grants DDM admin control.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <GrantSecAdminForm />
+        </CardContent>
+      </Card>
 
       {/* Information Card */}
       <Card>

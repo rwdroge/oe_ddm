@@ -19,11 +19,19 @@ import type {
   CreateUserRequest,
   UserRequest,
   UserResponse,
+  AssociateAuthTagRoleRequest,
+  AssociateAuthTagRoleResponse,
   MaskAndAuthTagResponse,
   AuthTagRoleResponse,
   UserRoleGrantsResponse,
   OperationResponse,
   ErrorResponse,
+  RolesListResponse,
+  RoleAuthTagsListResponse,
+  UsersListResponse,
+  AuthTagsListResponse,
+  RolesWithCountsResponse,
+  AuthTagsWithRolesResponse,
 } from '@/types/api';
 
 const API_BASE_URL = '/api/masking';
@@ -35,7 +43,27 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-});
+})
+
+// Surface backend error messages (including HTTP 4xx/5xx) onto the error object
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    try {
+      const backendMsg: string | undefined = error?.response?.data?.error
+      if (backendMsg) {
+        // Preserve original but promote backend error for convenient access
+        error.backendError = backendMsg
+        if (!error.message || error.message === 'Network Error') {
+          error.message = backendMsg
+        }
+      }
+    } catch (_) {
+      // no-op
+    }
+    return Promise.reject(error)
+  }
+);
 
 // Request interceptor for auth
 apiClient.interceptors.request.use((config) => {
@@ -142,6 +170,18 @@ export class DDMApiService {
     return response.data;
   }
 
+  // Security Admin
+  static async grantSecurityAdmin(request: UserRequest): Promise<UserResponse> {
+    const response: AxiosResponse<UserResponse> = await apiClient.post('/grant-security-admin', request);
+    return response.data;
+  }
+
+  // Authorization Tag to Role Association
+  static async associateAuthTagRole(request: AssociateAuthTagRoleRequest): Promise<AssociateAuthTagRoleResponse> {
+    const response: AxiosResponse<AssociateAuthTagRoleResponse> = await apiClient.post('/associate-auth-tag-role', request);
+    return response.data;
+  }
+
   // Information Retrieval
   static async getMaskAndAuthTag(
     tableName: string,
@@ -167,6 +207,38 @@ export class DDMApiService {
     return response.data;
   }
 
+  // Lists
+  static async getRoles(): Promise<RolesListResponse> {
+    const response: AxiosResponse<RolesListResponse> = await apiClient.get('/roles');
+    return response.data;
+  }
+
+  static async getRoleAuthTags(roleName: string): Promise<RoleAuthTagsListResponse> {
+    const params = new URLSearchParams({ roleName });
+    const response: AxiosResponse<RoleAuthTagsListResponse> = await apiClient.get(`/role-auth-tags?${params}`);
+    return response.data;
+  }
+
+  static async getUsers(): Promise<UsersListResponse> {
+    const response: AxiosResponse<UsersListResponse> = await apiClient.get('/users');
+    return response.data;
+  }
+
+  static async getAuthTags(): Promise<AuthTagsListResponse> {
+    const response: AxiosResponse<AuthTagsListResponse> = await apiClient.get('/auth-tags');
+    return response.data;
+  }
+
+  static async getRolesWithCounts(): Promise<RolesWithCountsResponse> {
+    const response: AxiosResponse<RolesWithCountsResponse> = await apiClient.get('/roles-with-counts');
+    return response.data;
+  }
+
+  static async getAuthTagsWithRoles(): Promise<AuthTagsWithRolesResponse> {
+    const response: AxiosResponse<AuthTagsWithRolesResponse> = await apiClient.get('/auth-tags-with-roles');
+    return response.data;
+  }
+
   // Authentication helpers
   static setAuth(username: string, password: string): void {
     localStorage.setItem('ddm-auth', JSON.stringify({ username, password }));
@@ -180,6 +252,22 @@ export class DDMApiService {
     const auth = localStorage.getItem('ddm-auth');
     return auth ? JSON.parse(auth) : null;
   }
+}
+
+// Helper to extract a meaningful error message from Axios errors consistently
+export function getApiErrorMessage(err: any, fallback: string = 'Request failed'): string {
+  const backend = err?.backendError || err?.response?.data?.error
+  if (backend && typeof backend === 'string') return backend
+  const msg = err?.message
+  if (msg && typeof msg === 'string') return msg
+  return fallback
+}
+
+// Helper to extract error string from non-success API responses
+export function getResponseErrorMessage(res: { error?: string; message?: string }, fallback: string): string {
+  if (res?.error && typeof res.error === 'string' && res.error.trim().length > 0) return res.error
+  if (res?.message && typeof res.message === 'string' && res.message.trim().length > 0) return res.message
+  return fallback
 }
 
 export default DDMApiService;

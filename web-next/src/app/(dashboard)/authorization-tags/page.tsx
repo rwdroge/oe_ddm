@@ -1,14 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { DDMApiService } from '@/services/api'
-import type { AuthTagRequest, UpdateAuthTagRequest } from '@/types/api'
+import { DDMApiService, getApiErrorMessage, getResponseErrorMessage } from '@/services/api'
+import type { AuthTagRequest, UpdateAuthTagRequest, AssociateAuthTagRoleRequest } from '@/types/api'
 import { TagIcon, PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 
@@ -32,9 +32,186 @@ type CreateTagForm = z.infer<typeof createTagSchema>
 type UpdateTagForm = z.infer<typeof updateTagSchema>
 type DeleteTagForm = z.infer<typeof deleteTagSchema>
 
+function AssociateForm({ onChanged }: { onChanged?: () => void }) {
+  const schema = z.object({
+    currentRoleName: z.string().min(1, 'Current role is required'),
+    authTagName: z.string().min(1, 'Authorization tag name is required'),
+    newRoleName: z.string().min(1, 'New role is required'),
+  })
+  type FormData = z.infer<typeof schema>
+
+  const form = useForm<FormData>({ resolver: zodResolver(schema) })
+  const [loading, setLoading] = useState(false)
+  const [roles, setRoles] = useState<string[]>([])
+  const [tags, setTags] = useState<string[]>([])
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await DDMApiService.getRoles()
+        const list = (res.result || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+        setRoles(list)
+      } catch (e) {
+        console.error(e)
+      }
+    })()
+  }, [])
+
+  // Load tags when current role changes
+  useEffect(() => {
+    const role = form.getValues('currentRoleName')
+    if (!role) return
+    (async () => {
+      try {
+        const res = await DDMApiService.getRoleAuthTags(role)
+        const list = (res.result || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+        setTags(list)
+      } catch (e) {
+        console.error(e)
+        setTags([])
+      }
+    })()
+  }, [form.watch('currentRoleName')])
+
+  const onSubmit = async (data: FormData) => {
+    try {
+      setLoading(true)
+      const payload: AssociateAuthTagRoleRequest = {
+        currentRoleName: data.currentRoleName,
+        authTagName: data.authTagName,
+        newRoleName: data.newRoleName,
+      }
+      const res = await DDMApiService.associateAuthTagRole(payload)
+      if (res.success) {
+        toast.success(`Reassigned tag "${data.authTagName}" from ${data.currentRoleName} to ${data.newRoleName}`)
+        form.reset()
+        if (onChanged) onChanged()
+      } else {
+        toast.error(getResponseErrorMessage(res as any, 'Failed to reassign authorization tag'))
+      }
+    } catch (e: any) {
+      console.error(e)
+      toast.error(getApiErrorMessage(e, 'Failed to reassign authorization tag'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Current Role Name</label>
+          <select
+            className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm ${form.formState.errors.currentRoleName ? 'border-red-500' : ''}`}
+            {...form.register('currentRoleName')}
+          >
+            <option value="">Select a role…</option>
+            {roles.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+          {form.formState.errors.currentRoleName && (
+            <p className="mt-1 text-sm text-red-600">{form.formState.errors.currentRoleName.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Authorization Tag Name</label>
+          {tags.length > 0 ? (
+            <select
+              className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm ${form.formState.errors.authTagName ? 'border-red-500' : ''}`}
+              {...form.register('authTagName')}
+            >
+              <option value="">Select a tag…</option>
+              {tags.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          ) : (
+            <Input
+              {...form.register('authTagName')}
+              placeholder="e.g., #DDM_SEE_ContactInfo"
+              className={form.formState.errors.authTagName ? 'border-red-500' : ''}
+            />
+          )}
+          {form.formState.errors.authTagName && (
+            <p className="mt-1 text-sm text-red-600">{form.formState.errors.authTagName.message}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">New Role Name</label>
+          <select
+            className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm ${form.formState.errors.newRoleName ? 'border-red-500' : ''}`}
+            {...form.register('newRoleName')}
+          >
+            <option value="">Select a role…</option>
+            {roles.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+          {form.formState.errors.newRoleName && (
+            <p className="mt-1 text-sm text-red-600">{form.formState.errors.newRoleName.message}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Associating...' : 'Associate Tag to Role'}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
 export default function AuthorizationTags() {
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState<'create' | 'update' | 'delete'>('create')
+  const [activeTab, setActiveTab] = useState<'create' | 'update' | 'delete' | 'associate'>('create')
+  const [roles, setRoles] = useState<string[]>([])
+  const [allTags, setAllTags] = useState<{ name: string; role: string }[]>([])
+  const [tagSearch, setTagSearch] = useState('')
+  const [sortByRole, setSortByRole] = useState(false)
+
+  const loadAllTags = async () => {
+    try {
+      const res = await DDMApiService.getAuthTagsWithRoles()
+      const list = (res.result || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((item) => {
+          const [name, role] = item.split('|')
+          return { name: name || '', role: role || '' }
+        })
+      setAllTags(list)
+    } catch (e) {
+      console.error('Failed to load authorization tags', e)
+      setAllTags([])
+    }
+  }
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await DDMApiService.getRoles()
+        const list = (res.result || '')
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean)
+        setRoles(list)
+      } catch (e) {
+        console.error(e)
+      }
+    })()
+  }, [])
 
   const createForm = useForm<CreateTagForm>({
     resolver: zodResolver(createTagSchema),
@@ -61,12 +238,13 @@ export default function AuthorizationTags() {
       if (response.success) {
         toast.success(`Authorization tag "${data.authTagName}" created successfully in domain "${data.domainName}"`)
         createForm.reset()
+        loadAllTags()
       } else {
-        toast.error(response.message || 'Failed to create authorization tag')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to create authorization tag'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create auth tag error:', error)
-      toast.error('Failed to create authorization tag')
+      toast.error(getApiErrorMessage(error, 'Failed to create authorization tag'))
     } finally {
       setLoading(false)
     }
@@ -86,12 +264,13 @@ export default function AuthorizationTags() {
       if (response.success) {
         toast.success(`Authorization tag updated from "${data.authTagName}" to "${data.newName}"`)
         updateForm.reset()
+        loadAllTags()
       } else {
-        toast.error(response.message || 'Failed to update authorization tag')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to update authorization tag'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Update auth tag error:', error)
-      toast.error('Failed to update authorization tag')
+      toast.error(getApiErrorMessage(error, 'Failed to update authorization tag'))
     } finally {
       setLoading(false)
     }
@@ -110,12 +289,13 @@ export default function AuthorizationTags() {
       if (response.success) {
         toast.success(`Authorization tag "${data.authTagName}" deleted successfully`)
         deleteForm.reset()
+        loadAllTags()
       } else {
-        toast.error(response.message || 'Failed to delete authorization tag')
+        toast.error(getResponseErrorMessage(response as any, 'Failed to delete authorization tag'))
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Delete auth tag error:', error)
-      toast.error('Failed to delete authorization tag')
+      toast.error(getApiErrorMessage(error, 'Failed to delete authorization tag'))
     } finally {
       setLoading(false)
     }
@@ -123,6 +303,47 @@ export default function AuthorizationTags() {
 
   return (
     <div className="space-y-8">
+      {/* Existing Authorization Tags Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Existing Authorization Tags</CardTitle>
+          <CardDescription>All authorization tags across roles</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 mb-3">
+            <Input
+              placeholder="Search tags or roles..."
+              value={tagSearch}
+              onChange={(e) => setTagSearch(e.target.value)}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => setSortByRole((v) => !v)}>
+              Sort by {sortByRole ? 'role' : 'tag'}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={loadAllTags}>
+              Refresh
+            </Button>
+          </div>
+          {allTags.length === 0 ? (
+            <p className="text-sm text-gray-600">No authorization tags found.</p>
+          ) : (
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+              {allTags
+                .filter((t) =>
+                  (t.name + ' ' + t.role).toLowerCase().includes(tagSearch.toLowerCase())
+                )
+                .sort((a, b) =>
+                  sortByRole ? a.role.localeCompare(b.role) : a.name.localeCompare(b.name)
+                )
+                .map((t) => (
+                  <li key={`${t.name}|${t.role}`} className="rounded border bg-white px-3 py-2 flex items-center justify-between">
+                    <span>{t.name}</span>
+                    <span className="text-xs text-gray-600">{t.role}</span>
+                  </li>
+                ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
@@ -167,6 +388,16 @@ export default function AuthorizationTags() {
           >
             Delete Tag
           </button>
+          <button
+            onClick={() => setActiveTab('associate')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'associate'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Associate to Role
+          </button>
         </nav>
       </div>
 
@@ -179,7 +410,7 @@ export default function AuthorizationTags() {
               <span>Create Authorization Tag</span>
             </CardTitle>
             <CardDescription>
-              Create a new authorization tag in a specific domain
+              Create a new authorization tag and associate it to a Role. The Role determines who can see unmasked data for fields using this tag.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -187,13 +418,17 @@ export default function AuthorizationTags() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Domain Name
+                    Role Name
                   </label>
-                  <Input
+                  <select
+                    className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm ${createForm.formState.errors.domainName ? 'border-red-500' : ''}`}
                     {...createForm.register('domainName')}
-                    placeholder="e.g., TestDomain, ProductionDomain"
-                    className={createForm.formState.errors.domainName ? 'border-red-500' : ''}
-                  />
+                  >
+                    <option value="">Select a role…</option>
+                    {roles.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
                   {createForm.formState.errors.domainName && (
                     <p className="mt-1 text-sm text-red-600">
                       {createForm.formState.errors.domainName.message}
@@ -228,6 +463,24 @@ export default function AuthorizationTags() {
         </Card>
       )}
 
+      {/* Associate Tag to Role Tab */}
+      {activeTab === 'associate' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <PencilIcon className="h-5 w-5" />
+              <span>Associate Authorization Tag to Role</span>
+            </CardTitle>
+            <CardDescription>
+              Reassign an existing authorization tag from a current role to a new role
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AssociateForm onChanged={loadAllTags} />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Update Tag Tab */}
       {activeTab === 'update' && (
         <Card>
@@ -237,7 +490,7 @@ export default function AuthorizationTags() {
               <span>Update Authorization Tag</span>
             </CardTitle>
             <CardDescription>
-              Update an existing authorization tag with a new name
+              Update an existing authorization tag name (association to Role remains the same)
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -245,13 +498,17 @@ export default function AuthorizationTags() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Domain Name
+                    Role Name
                   </label>
-                  <Input
+                  <select
+                    className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm ${updateForm.formState.errors.domainName ? 'border-red-500' : ''}`}
                     {...updateForm.register('domainName')}
-                    placeholder="e.g., TestDomain"
-                    className={updateForm.formState.errors.domainName ? 'border-red-500' : ''}
-                  />
+                  >
+                    <option value="">Select a role…</option>
+                    {roles.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
                   {updateForm.formState.errors.domainName && (
                     <p className="mt-1 text-sm text-red-600">
                       {updateForm.formState.errors.domainName.message}
@@ -311,21 +568,23 @@ export default function AuthorizationTags() {
               <span>Delete Authorization Tag</span>
             </CardTitle>
             <CardDescription>
-              Remove an authorization tag from a domain
+              Remove an authorization tag (it will no longer control access for associated fields)
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={deleteForm.handleSubmit(onDeleteSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Domain Name
-                  </label>
-                  <Input
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Role Name</label>
+                  <select
+                    className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm ${deleteForm.formState.errors.domainName ? 'border-red-500' : ''}`}
                     {...deleteForm.register('domainName')}
-                    placeholder="e.g., TestDomain"
-                    className={deleteForm.formState.errors.domainName ? 'border-red-500' : ''}
-                  />
+                  >
+                    <option value="">Select a role…</option>
+                    {roles.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
                   {deleteForm.formState.errors.domainName && (
                     <p className="mt-1 text-sm text-red-600">
                       {deleteForm.formState.errors.domainName.message}

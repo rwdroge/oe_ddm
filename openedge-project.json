@@ -12,7 +12,8 @@
         { "type": "propath", "path": "${DLC}/tty/ablunit.pl" },
         { "type": "propath", "path": "${DLC}/tty/netlib/OpenEdge.Net.pl" },
         { "type": "propath", "path": "${DLC}/tty/OpenEdge.BusinessLogic.pl" },
-        { "type": "propath", "path": "${DLC}/tty/dataadmin.pl" }
+        { "type": "propath", "path": "${DLC}/tty/dataadmin.pl" },
+        { "type": "propath", "path": "${DLC}/tty/prodict.pl" }
     ],
     "dbConnections": [ { "name": "sports2020", "connect": "-db sports2020 -S 10000 -H sports2020-db", "schemaFile": "src/schema/sports2020.df", "aliases": [] } ],
     "buildDirectory": "./bin",
