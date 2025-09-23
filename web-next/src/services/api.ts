@@ -1,8 +1,6 @@
 import axios, { AxiosResponse } from 'axios';
 import type {
   HealthResponse,
-  DDMConfigRequest,
-  DDMConfigResponse,
   ConfigureFieldRequest,
   ConfigureFieldResponse,
   FieldRequest,
@@ -14,6 +12,8 @@ import type {
   RoleResponse,
   GrantRoleRequest,
   GrantRoleResponse,
+  GrantRolesRequest,
+  GrantRolesResponse,
   DeleteGrantedRoleRequest,
   DeleteGrantedRoleResponse,
   CreateUserRequest,
@@ -32,6 +32,9 @@ import type {
   AuthTagsListResponse,
   RolesWithCountsResponse,
   AuthTagsWithRolesResponse,
+  TablesListResponse,
+  FieldsListResponse,
+  TableConfigsResponse,
 } from '@/types/api';
 
 const API_BASE_URL = '/api/masking';
@@ -43,25 +46,25 @@ const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-})
+});
 
 // Surface backend error messages (including HTTP 4xx/5xx) onto the error object
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     try {
-      const backendMsg: string | undefined = error?.response?.data?.error
+      const backendMsg: string | undefined = error?.response?.data?.error;
       if (backendMsg) {
         // Preserve original but promote backend error for convenient access
-        error.backendError = backendMsg
+        (error as any).backendError = backendMsg;
         if (!error.message || error.message === 'Network Error') {
-          error.message = backendMsg
+          error.message = backendMsg;
         }
       }
     } catch (_) {
       // no-op
     }
-    return Promise.reject(error)
+    return Promise.reject(error);
   }
 );
 
@@ -95,16 +98,7 @@ export class DDMApiService {
     return response.data;
   }
 
-  // DDM Configuration
-  static async setDDMConfig(request: DDMConfigRequest): Promise<DDMConfigResponse> {
-    const response: AxiosResponse<DDMConfigResponse> = await apiClient.post('/set-ddm-config', request);
-    return response.data;
-  }
-
-  static async removeDDMConfig(request: FieldRequest): Promise<OperationResponse> {
-    const response: AxiosResponse<OperationResponse> = await apiClient.delete('/remove-ddm-config', { data: request });
-    return response.data;
-  }
+  // DDM Configuration (removed legacy direct config endpoints in favor of Field Masking)
 
   // Field Operations
   static async configureField(request: ConfigureFieldRequest): Promise<ConfigureFieldResponse> {
@@ -151,6 +145,11 @@ export class DDMApiService {
 
   static async grantRole(request: GrantRoleRequest): Promise<GrantRoleResponse> {
     const response: AxiosResponse<GrantRoleResponse> = await apiClient.post('/grant-role', request);
+    return response.data;
+  }
+
+  static async grantRoles(request: GrantRolesRequest): Promise<GrantRolesResponse> {
+    const response: AxiosResponse<GrantRolesResponse> = await apiClient.post('/grant-roles', request);
     return response.data;
   }
 
@@ -236,6 +235,24 @@ export class DDMApiService {
 
   static async getAuthTagsWithRoles(): Promise<AuthTagsWithRolesResponse> {
     const response: AxiosResponse<AuthTagsWithRolesResponse> = await apiClient.get('/auth-tags-with-roles');
+    return response.data;
+  }
+
+  // Schema: Tables and Fields
+  static async getTables(): Promise<TablesListResponse> {
+    const response: AxiosResponse<TablesListResponse> = await apiClient.get('/tables');
+    return response.data;
+  }
+
+  static async getFields(tableName: string): Promise<FieldsListResponse> {
+    const params = new URLSearchParams({ tableName });
+    const response: AxiosResponse<FieldsListResponse> = await apiClient.get(`/fields?${params}`);
+    return response.data;
+  }
+
+  static async getTableConfigs(tableName: string): Promise<TableConfigsResponse> {
+    const params = new URLSearchParams({ tableName });
+    const response: AxiosResponse<TableConfigsResponse> = await apiClient.get(`/table-configs?${params}`);
     return response.data;
   }
 

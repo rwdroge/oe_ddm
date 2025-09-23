@@ -40,7 +40,6 @@ CREATE "WinHttp.WinHttpRequest.5.1" hClient.
 
 /* Run all test categories */
 RUN TestHealthEndpoint.
-RUN TestDDMConfigEndpoints.
 RUN TestFieldOperationEndpoints.
 RUN TestAuthTagEndpoints.
 RUN TestRoleEndpoints.
@@ -77,29 +76,6 @@ PROCEDURE TestHealthEndpoint:
     
 END PROCEDURE.
 
-PROCEDURE TestDDMConfigEndpoints:
-    
-    MESSAGE "Testing DDM Configuration Endpoints...".
-    
-    /* Test Set DDM Config */
-    RUN ExecuteTest(
-        INPUT "Set DDM Config",
-        INPUT "/set-ddm-config",
-        INPUT "POST",
-        INPUT '~{"tableName":"Customer","fieldName":"CustNum","maskValue":"****","authTag":"SENSITIVE"~}',
-        INPUT 200
-    ).
-    
-    /* Test Remove DDM Config */
-    RUN ExecuteTest(
-        INPUT "Remove DDM Config",
-        INPUT "/remove-ddm-config",
-        INPUT "DELETE",
-        INPUT '~{"tableName":"Customer","fieldName":"CustNum"~}',
-        INPUT 200
-    ).
-    
-END PROCEDURE.
 
 PROCEDURE TestFieldOperationEndpoints:
     
@@ -264,14 +240,7 @@ PROCEDURE TestInformationEndpoints:
         INPUT 200
     ).
     
-    /* Test Get DDM Config (should return 501) */
-    RUN ExecuteTest(
-        INPUT "Get DDM Config (Not Implemented)",
-        INPUT "/ddm-config?tableName=Customer&fieldName=CustNum",
-        INPUT "GET",
-        INPUT "",
-        INPUT 501
-    ).
+    /* Removed deprecated /ddm-config test */
     
 END PROCEDURE.
 
@@ -279,23 +248,7 @@ PROCEDURE TestErrorHandling:
     
     MESSAGE "Testing Error Handling...".
     
-    /* Test missing parameters */
-    RUN ExecuteTest(
-        INPUT "Missing Parameters",
-        INPUT "/set-ddm-config",
-        INPUT "POST",
-        INPUT '~{"tableName":"Customer"~}',
-        INPUT 400
-    ).
-    
-    /* Test invalid JSON */
-    RUN ExecuteTest(
-        INPUT "Invalid JSON",
-        INPUT "/set-ddm-config",
-        INPUT "POST",
-        INPUT '~{"tableName":"Customer","fieldName":~}',
-        INPUT 400
-    ).
+    /* Removed deprecated /set-ddm-config error handling tests */
     
     /* Test non-existent endpoint */
     RUN ExecuteTest(

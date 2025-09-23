@@ -4,11 +4,95 @@
 
 The DDM REST API provides programmatic access to OpenEdge Dynamic Data Masking functionality through PASOE webhandlers. This API enables integration with external applications and provides a foundation for web-based administration interfaces.
 
+## Authorization Tag Format
+
+DDM authorization tags must follow these rules:
+
+- Must begin with `#DDM_See_` (case-insensitive)
+- Maximum length: 64 characters total
+- Allowed characters: A–Z, a–z, 0–9, and the following: `_ . - # $ % &`
+- No spaces allowed
+- Must include non-empty content after the required prefix
+
+Examples: `#DDM_See_PII`, `#DDM_See_ContactInfo`, `#DDM_See_TopSecret`
+
+Endpoints that accept an authorization tag (e.g., Create/Update/Delete Authorization Tag, Configure Field) expect values that adhere to this format. Requests with invalid values will be rejected with a 400 Bad Request.
+
+## Mask Configurations
+
+A mask is the format-string representation set up against the fields in a table. A mask configuration establishes how to hide the data from unauthorized users. You can define the following mask configurations:
+
+- **D — Default mask:** Provided by the clients. Example: `D:`
+- **N — Null mask:** Can be used for any data type. Example: `N:`
+- **L — Literal mask:** For any data type except RAW and LOGICAL, provided the literal is compatible with the underlying data type. Example: `L:MASKED`
+- **P — Partial mask:** Partially masks data (character data type only). Format: `P:start,maskChar,count`, for example `P:0,X,4`.
+
+Note: The mask transformation must always result in the same datatype as the original value. For example, a numeric value such as `1234` cannot be converted to a non-numerical value such as `XXXX`.
+
+### ABL Example: Default Mask (current API)
+
+The following ABL example configures the default mask (`D:`) using the high-level `ConfigureFieldMasking` API and the `#DDM_SEE_ContactInfo` authorization tag for the `state` field of the `Customer` table:
+
+```abl
+USING ddm.DataAdminMaskingService FROM PROPATH.
+
+DEFINE VARIABLE service AS DataAdminMaskingService NO-UNDO.
+DEFINE VARIABLE lResult AS LOGICAL NO-UNDO.
+
+service = NEW DataAdminMaskingService(LDBNAME("DICTDB")).
+/* maskingType FULL with maskingValue 'D:' sets the default mask */
+lResult = service:ConfigureFieldMasking(
+    "Customer",   /* tableName */
+    "state",      /* fieldName */
+    "FULL",       /* maskingType: FULL | PARTIAL | CONDITIONAL */
+    "D:",         /* maskingValue e.g., D:, N:, L:MASKED, P:0,X,4 */
+    "#DDM_SEE_ContactInfo" /* authTag */
+).
+```
+
 ## Base URL
 
 ```
 http://localhost:8080/api/masking
 ```
+
+## Current REST endpoints
+
+- **POST /configure-field**
+  Configure field masking using `maskingType` and `maskingValue` with an `authTag`.
+
+- **POST /unset-mask**
+  Remove the mask configuration from a field.
+
+- **POST /unset-auth-tag**
+  Remove the authorization tag from a field.
+
+- **POST /create-auth-tag**
+  Create an authorization tag in a domain.
+
+- **POST /update-auth-tag**
+  Rename an existing authorization tag.
+
+- **DELETE /delete-auth-tag**
+  Delete an authorization tag from a domain.
+
+- **POST /create-role**, **DELETE /delete-role**
+  Manage security roles.
+
+- **POST /grant-role**, **POST /grant-roles**, **DELETE /delete-granted-role**
+  Grant one or many users a role; revoke a granted role by ID.
+
+- **GET /roles**, **GET /roles-with-counts**
+  Retrieve role lists; optionally with user counts per role.
+
+- **GET /users**, **GET /auth-tags**, **GET /auth-tags-with-roles**, **GET /role-auth-tags**
+  Retrieve users and authorization tag associations.
+
+- **GET /mask-and-auth-tag**
+  Retrieve mask and authorization tag info for a field (for display/diagnostics).
+
+- **GET /user-role-grants**
+  List role grants for a user.
 
 ## Authentication
 

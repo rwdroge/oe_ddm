@@ -291,9 +291,9 @@ flowchart LR
     HANDLERS["src/webhandlers/ROOT.handlers\nhandler routes"]
     RULES["DDM Rules via API\nSet/Unset mask, Auth Tags"]
   
-    UI -- "HTTP JSON\n/health, /set-ddm-config,\n/configure-field, ... " --> REST
+    UI -- "HTTP JSON\n/health, /configure-field, /unset-mask, /unset-auth-tag ... " --> REST
     REST -- "calls methods" --> SERVICE
-    SERVICE -- "setDDMConfig(table, field, mask, tag)" --> DDMAPI
+    SERVICE -- "ConfigureFieldMasking(table, field, maskingType, maskingValue, tag)" --> DDMAPI
     DDMAPI -- "applies DDM config" --> DB
   
     REST -. "reads handler/action params\n(GET/POST/DELETE)" .-> HANDLERS

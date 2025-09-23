@@ -8,24 +8,37 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { DDMApiService, getApiErrorMessage, getResponseErrorMessage } from '@/services/api'
+import { isValidAuthorizationTag, getAuthorizationTagValidationError, AUTH_TAG_PREFIX_CONST } from '@/lib/validation'
 import type { AuthTagRequest, UpdateAuthTagRequest, AssociateAuthTagRoleRequest } from '@/types/api'
 import { TagIcon, PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 
 const createTagSchema = z.object({
   domainName: z.string().min(1, 'Domain name is required'),
-  authTagName: z.string().min(1, 'Authorization tag name is required'),
+  authTagName: z.string().superRefine((val, ctx) => {
+    const err = getAuthorizationTagValidationError(val)
+    if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err })
+  }),
 })
 
 const updateTagSchema = z.object({
   domainName: z.string().min(1, 'Domain name is required'),
-  authTagName: z.string().min(1, 'Current tag name is required'),
-  newName: z.string().min(1, 'New tag name is required'),
+  authTagName: z.string().superRefine((val, ctx) => {
+    const err = getAuthorizationTagValidationError(val)
+    if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err })
+  }),
+  newName: z.string().superRefine((val, ctx) => {
+    const err = getAuthorizationTagValidationError(val)
+    if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err })
+  }),
 })
 
 const deleteTagSchema = z.object({
   domainName: z.string().min(1, 'Domain name is required'),
-  authTagName: z.string().min(1, 'Authorization tag name is required'),
+  authTagName: z.string().superRefine((val, ctx) => {
+    const err = getAuthorizationTagValidationError(val)
+    if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err })
+  }),
 })
 
 type CreateTagForm = z.infer<typeof createTagSchema>
@@ -35,7 +48,10 @@ type DeleteTagForm = z.infer<typeof deleteTagSchema>
 function AssociateForm({ onChanged }: { onChanged?: () => void }) {
   const schema = z.object({
     currentRoleName: z.string().min(1, 'Current role is required'),
-    authTagName: z.string().min(1, 'Authorization tag name is required'),
+    authTagName: z.string().superRefine((val, ctx) => {
+      const err = getAuthorizationTagValidationError(val)
+      if (err) ctx.addIssue({ code: z.ZodIssueCode.custom, message: err })
+    }),
     newRoleName: z.string().min(1, 'New role is required'),
   })
   type FormData = z.infer<typeof schema>
@@ -137,7 +153,7 @@ function AssociateForm({ onChanged }: { onChanged?: () => void }) {
           ) : (
             <Input
               {...form.register('authTagName')}
-              placeholder="e.g., #DDM_SEE_ContactInfo"
+              placeholder={`e.g., ${AUTH_TAG_PREFIX_CONST}ContactInfo`}
               className={form.formState.errors.authTagName ? 'border-red-500' : ''}
             />
           )}
@@ -442,7 +458,7 @@ export default function AuthorizationTags() {
                   </label>
                   <Input
                     {...createForm.register('authTagName')}
-                    placeholder="e.g., CONFIDENTIAL, PII, SENSITIVE"
+                    placeholder={`Must start with ${AUTH_TAG_PREFIX_CONST} and use A-Z, a-z, 0-9, _ . - # $ % &`}
                     className={createForm.formState.errors.authTagName ? 'border-red-500' : ''}
                   />
                   {createForm.formState.errors.authTagName && (
@@ -522,7 +538,7 @@ export default function AuthorizationTags() {
                   </label>
                   <Input
                     {...updateForm.register('authTagName')}
-                    placeholder="e.g., CONFIDENTIAL"
+                    placeholder={`e.g., ${AUTH_TAG_PREFIX_CONST}ContactInfo`}
                     className={updateForm.formState.errors.authTagName ? 'border-red-500' : ''}
                   />
                   {updateForm.formState.errors.authTagName && (
@@ -538,7 +554,7 @@ export default function AuthorizationTags() {
                   </label>
                   <Input
                     {...updateForm.register('newName')}
-                    placeholder="e.g., TOP_SECRET"
+                    placeholder={`e.g., ${AUTH_TAG_PREFIX_CONST}PII`}
                     className={updateForm.formState.errors.newName ? 'border-red-500' : ''}
                   />
                   {updateForm.formState.errors.newName && (
@@ -598,7 +614,7 @@ export default function AuthorizationTags() {
                   </label>
                   <Input
                     {...deleteForm.register('authTagName')}
-                    placeholder="e.g., CONFIDENTIAL"
+                    placeholder={`e.g., ${AUTH_TAG_PREFIX_CONST}ContactInfo`}
                     className={deleteForm.formState.errors.authTagName ? 'border-red-500' : ''}
                   />
                   {deleteForm.formState.errors.authTagName && (
@@ -653,6 +669,17 @@ export default function AuthorizationTags() {
                 Authorization tags are labels that control access to masked data. They work in conjunction 
                 with user roles to determine who can see unmasked sensitive information.
               </p>
+            </div>
+            <div>
+              <h4 className="font-medium text-gray-900">Authorization Tag Format</h4>
+              <ul className="mt-2 space-y-1 list-disc list-inside">
+                <li>Must begin with <code>#DDM_See_</code> (case-insensitive)</li>
+                <li>Maximum length: 64 characters total</li>
+                <li>Allowed characters: A–Z, a–z, 0–9, and <code>_ . - # $ % &</code></li>
+                <li>No spaces allowed</li>
+                <li>Must include non-empty content after the required prefix</li>
+              </ul>
+              <p className="mt-2">Examples: <code>#DDM_See_PII</code>, <code>#DDM_See_ContactInfo</code>, <code>#DDM_See_TopSecret</code></p>
             </div>
             <div>
               <h4 className="font-medium text-gray-900">Common Tag Examples:</h4>

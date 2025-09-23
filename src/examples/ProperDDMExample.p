@@ -15,7 +15,9 @@ BLOCK-LEVEL ON ERROR UNDO, THROW.
 
 DEFINE VARIABLE oMaskingService AS DataAdminMaskingService NO-UNDO.
 DEFINE VARIABLE lSuccess AS LOGICAL NO-UNDO.
-DEFINE VARIABLE cCurrentConfig AS CHARACTER NO-UNDO.
+/* cCurrentConfig no longer used; replaced by cMaskValue/cAuthTag outputs */
+DEFINE VARIABLE cMaskValue AS CHARACTER NO-UNDO.
+DEFINE VARIABLE cAuthTag   AS CHARACTER NO-UNDO.
 
 /* Initialize the masking service */
 oMaskingService = NEW DataAdminMaskingService("sports2000").
@@ -27,9 +29,9 @@ MESSAGE "Configuring DDM for Customer.CreditCard field...".
 lSuccess = oMaskingService:ConfigureFieldMasking(
     "Customer",           /* Table name */
     "CreditCard",         /* Field name */  
-    "PUBLIC",             /* User/Role name */
-    "FULL_MASK",          /* Mask type */
-    "XXXX-XXXX-XXXX-XXXX" /* Mask value */
+    "FULL",               /* Mask type */
+    "XXXX-XXXX-XXXX-XXXX",/* Mask value */
+    "PUBLIC"              /* Authorization tag */
 ).
 
 IF lSuccess THEN
@@ -43,9 +45,9 @@ MESSAGE "Configuring DDM for Customer.Phone field...".
 lSuccess = oMaskingService:ConfigureFieldMasking(
     "Customer",           /* Table name */
     "Phone",              /* Field name */
-    "PUBLIC",             /* User/Role name */
-    "PARTIAL_MASK",       /* Mask type */
-    "(XXX) XXX-####"      /* Partial mask - show last 4 digits */
+    "PARTIAL",            /* Mask type */
+    "(XXX) XXX-####",     /* Partial mask - show last 4 digits */
+    "PUBLIC"              /* Authorization tag */
 ).
 
 IF lSuccess THEN
@@ -56,13 +58,16 @@ ELSE
 /* Example 3: Get current DDM configuration */
 MESSAGE "Retrieving current DDM configuration...".
 
-cCurrentConfig = oMaskingService:GetFieldDDMConfig(
+lSuccess = oMaskingService:GetFieldDDMConfig(
     "Customer",    /* Table name */
-    "CreditCard",  /* Field name */
-    "PUBLIC"       /* User/Role name */
+    "Address",     /* Field name */
+    OUTPUT cMaskValue,
+    OUTPUT cAuthTag
 ).
-
-MESSAGE SUBSTITUTE("Current DDM config for Customer.CreditCard: &1", cCurrentConfig).
+IF lSuccess THEN
+    MESSAGE SUBSTITUTE("Current DDM config for Customer.Address: mask=&1, authTag=&2", cMaskValue, cAuthTag).
+ELSE
+    MESSAGE "No DDM configuration found for Customer.Address".
 
 /* Example 4: Configure conditional masking based on user role */
 MESSAGE "Configuring conditional DDM for Customer.SSN field...".
@@ -70,9 +75,9 @@ MESSAGE "Configuring conditional DDM for Customer.SSN field...".
 lSuccess = oMaskingService:ConfigureFieldMasking(
     "Customer",                    /* Table name */
     "SSN",                         /* Field name */
-    "MANAGER",                     /* User/Role name */
-    "CONDITIONAL_MASK",            /* Mask type */
-    "XXX-XX-####"                  /* Show last 4 digits for managers */
+    "CONDITIONAL",                 /* Mask type */
+    "XXX-XX-####",                 /* Show last 4 digits for managers */
+    "MANAGER"                      /* Authorization tag */
 ).
 
 IF lSuccess THEN
@@ -86,8 +91,8 @@ MESSAGE "Setting raw DDM configuration...".
 lSuccess = oMaskingService:SetFieldDDMConfig(
     "Customer",                           /* Table name */
     "Email",                              /* Field name */
-    "PUBLIC",                             /* User/Role name */
-    "MASK_EMAIL=***@domain.com"           /* Raw DDM configuration */
+    "MASK_EMAIL=***@domain.com",          /* Raw DDM configuration (mask value) */
+    "PUBLIC"                              /* Authorization tag */
 ).
 
 IF lSuccess THEN

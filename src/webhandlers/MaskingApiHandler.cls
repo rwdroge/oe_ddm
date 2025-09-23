@@ -75,6 +75,42 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
                 oResponse:ContentLength = LENGTH(cResponseBody).
             END.
 
+            WHEN "tables" THEN DO:
+                /* List all user tables in the connected database */
+                HandleGetTables(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    oResponse:ContentLength = LENGTH(ttResponseData.jsonResponse).
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                    oResponse:ContentLength = LENGTH(cResponseBody).
+                END.
+            END.
+
+            WHEN "fields" THEN DO:
+                /* List fields for a given table */
+                HandleGetFields(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    oResponse:ContentLength = LENGTH(ttResponseData.jsonResponse).
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                    oResponse:ContentLength = LENGTH(cResponseBody).
+                END.
+            END.
+
             WHEN "roles-with-counts" THEN DO:
                 /* List all roles with their granted user counts */
                 HandleGetRolesWithCounts(poRequest, OUTPUT TABLE ttResponseData).
@@ -143,11 +179,9 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
                 END.
             END.
 
-            
-            
-            WHEN "ddm-config" THEN DO:
-                /* Get DDM configuration for a specific field */
-                HandleGetDDMConfig(poRequest, OUTPUT TABLE ttResponseData).
+            WHEN "mask-and-auth-tag" THEN DO:
+                /* Get mask and authorization tag for a field */
+                HandleGetMaskAndAuthTag(poRequest, OUTPUT TABLE ttResponseData).
                 FIND FIRST ttResponseData NO-ERROR.
                 IF AVAILABLE ttResponseData THEN DO:
                     oResponse:StatusCode = ttResponseData.statusCode.
@@ -162,10 +196,10 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
                     oResponse:ContentLength = LENGTH(cResponseBody).
                 END.
             END.
-            
-            WHEN "mask-and-auth-tag" THEN DO:
-                /* Get mask and authorization tag for a field */
-                HandleGetMaskAndAuthTag(poRequest, OUTPUT TABLE ttResponseData).
+
+            WHEN "table-configs" THEN DO:
+                /* Get all field configs for a table */
+                HandleGetTableConfigs(poRequest, OUTPUT TABLE ttResponseData).
                 FIND FIRST ttResponseData NO-ERROR.
                 IF AVAILABLE ttResponseData THEN DO:
                     oResponse:StatusCode = ttResponseData.statusCode.
@@ -318,7 +352,283 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         END FINALLY.
         
     END METHOD.
+    
 
+    /*------------------------------------------------------------------------------
+     Purpose: Handle grant one role to multiple users
+     Notes:   Accepts JSON: { roleName: "...", userNames: ["u1","u2",...] }
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGrantRoles(INPUT poRequest AS IWebRequest,
+                                         OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonRequest  AS JsonObject NO-UNDO.
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE oResults      AS JsonArray  NO-UNDO.
+        DEFINE VARIABLE oUsers        AS JsonArray  NO-UNDO.
+        DEFINE VARIABLE cRoleName     AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cUser         AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE i             AS INTEGER   NO-UNDO.
+        DEFINE VARIABLE lSuccess      AS LOGICAL   NO-UNDO.
+        DEFINE VARIABLE iTotal        AS INTEGER   NO-UNDO.
+        DEFINE VARIABLE iOk           AS INTEGER   NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        oJsonResponse = NEW JsonObject().
+        oResults = NEW JsonArray().
+
+        /* Parse request */
+        oJsonRequest = CAST(poRequest:Entity, JsonObject).
+        cRoleName = oJsonRequest:GetCharacter("roleName").
+        oUsers = oJsonRequest:GetJsonArray("userNames").
+
+        IF cRoleName = "" OR cRoleName = ? OR NOT VALID-OBJECT(oUsers) OR oUsers:Length = 0 THEN DO:
+            oJsonResponse:Add("error", "roleName and userNames[] are required").
+            oJsonResponse:Add("success", FALSE).
+            ttResponseData.statusCode = 400.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+            RETURN.
+        END.
+
+        iTotal = oUsers:Length.
+        iOk = 0.
+
+        DO i = 1 TO oUsers:Length:
+            cUser = oUsers:GetCharacter(i).
+            IF cUser = ? THEN cUser = "".
+            lSuccess = FALSE.
+            IF cUser <> "" THEN DO ON ERROR UNDO, THROW:
+                lSuccess = oMaskingService:GrantRoleToUser(cUser, cRoleName).
+            END.
+            IF lSuccess THEN iOk = iOk + 1.
+
+            /* Per-user result */
+            DEFINE VARIABLE oItem AS JsonObject NO-UNDO.
+            oItem = NEW JsonObject().
+            oItem:Add("userName", cUser).
+            oItem:Add("roleName", cRoleName).
+            oItem:Add("success", lSuccess).
+            IF lSuccess THEN
+                oItem:Add("message", SUBSTITUTE("Granted role '&1' to '&2'", cRoleName, cUser)).
+            ELSE
+                oItem:Add("error", SUBSTITUTE("Failed to grant role '&1' to '&2'", cRoleName, cUser)).
+            oResults:Add(oItem).
+        END.
+
+        oJsonResponse:Add("roleName", cRoleName).
+        oJsonResponse:Add("results", oResults).
+        oJsonResponse:Add("success", iOk = iTotal).
+        IF iOk = iTotal THEN
+            oJsonResponse:Add("message", SUBSTITUTE("Granted role '&1' to &2 user(s)", cRoleName, iOk)).
+        ELSE IF iOk = 0 THEN
+            oJsonResponse:Add("message", SUBSTITUTE("Failed to grant role '&1' to all &2 user(s)", cRoleName, iTotal)).
+        ELSE
+            oJsonResponse:Add("message", SUBSTITUTE("Partially granted role '&1': &2/&3 succeeded", cRoleName, iOk, iTotal)).
+
+        /* HTTP status: 200 all ok, 207 partial, 400 none */
+        ttResponseData.statusCode = IF iOk = iTotal THEN 200 ELSE IF iOk = 0 THEN 400 ELSE 207.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = (iOk = iTotal).
+
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: Handle get all field configs for a table
+     Notes:   Aggregates existing per-field config data
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetTableConfigs(INPUT poRequest AS IWebRequest,
+                                              OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE oJsonArray    AS JsonArray  NO-UNDO.
+        DEFINE VARIABLE cTableName    AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cFieldsList   AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE i             AS INTEGER   NO-UNDO.
+        DEFINE VARIABLE cField        AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cResult       AS CHARACTER NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        /* Read tableName from query */
+        cTableName = poRequest:URI:GetQueryValue("tableName").
+        IF cTableName = "" OR cTableName = ? THEN DO:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("error", "tableName is required").
+            oJsonResponse:Add("success", FALSE).
+
+            ttResponseData.statusCode = 400.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+            RETURN.
+        END.
+
+        oJsonArray = NEW JsonArray().
+
+        DO ON ERROR UNDO, THROW:
+            cFieldsList = oMaskingService:GetFieldsForTable(cTableName).
+            DO i = 1 TO NUM-ENTRIES(cFieldsList):
+                cField = TRIM(ENTRY(i, cFieldsList)).
+                IF cField = "" THEN NEXT.
+                DEFINE VARIABLE cMaskVal  AS CHARACTER NO-UNDO.
+                DEFINE VARIABLE cTag      AS CHARACTER NO-UNDO.
+                DEFINE VARIABLE lOK       AS LOGICAL   NO-UNDO.
+                lOK = oMaskingService:GetFieldDDMConfig(cTableName, cField, OUTPUT cMaskVal, OUTPUT cTag).
+                IF lOK AND cMaskVal <> "" AND cTag <> "" THEN DO:
+                    DEFINE VARIABLE oItem AS JsonObject NO-UNDO.
+                    oItem = NEW JsonObject().
+                    oItem:Add("fieldName", cField).
+                    IF cMaskVal <> "" THEN oItem:Add("maskValue", cMaskVal).
+                    IF cTag <> "" THEN oItem:Add("authTag", cTag).
+                    /* Provide a simple details string as well */
+                    oItem:Add("result", SUBSTITUTE("Mask: &1, Tag: &2", cMaskVal, cTag)).
+                    oJsonArray:Add(oItem).
+                END.
+            END.
+        END.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("tableName", cTableName).
+        oJsonResponse:Add("items", oJsonArray).
+        oJsonResponse:Add("success", TRUE).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = TRUE.
+
+        CATCH oError AS Progress.Lang.Error:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List all user tables from connected database
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetTables(INPUT poRequest AS IWebRequest,
+                                        OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE oJsonArray    AS JsonArray  NO-UNDO.
+        DEFINE VARIABLE cList         AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE i             AS INTEGER   NO-UNDO.
+        DEFINE VARIABLE cItem         AS CHARACTER NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        oJsonArray = NEW JsonArray().
+
+        DO ON ERROR UNDO, THROW:
+            /* Use DataAdmin service to enumerate user tables (via ddm service) */
+            cList = oMaskingService:GetAllTables().
+            DO i = 1 TO NUM-ENTRIES(cList):
+                cItem = TRIM(ENTRY(i, cList)).
+                IF cItem <> "" THEN oJsonArray:Add(cItem).
+            END.
+        END.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("tables", oJsonArray).
+        oJsonResponse:Add("success", TRUE).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = TRUE.
+
+        CATCH oError AS Progress.Lang.Error:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List all fields for a given table name
+    ------------------------------------------------------------------------------*/
+    METHOD PRIVATE VOID HandleGetFields(INPUT poRequest AS IWebRequest,
+                                        OUTPUT TABLE ttResponseData):
+        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
+        DEFINE VARIABLE oJsonArray    AS JsonArray  NO-UNDO.
+        DEFINE VARIABLE cTableName    AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cList         AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE i             AS INTEGER   NO-UNDO.
+        DEFINE VARIABLE cItem         AS CHARACTER NO-UNDO.
+
+        EMPTY TEMP-TABLE ttResponseData.
+        CREATE ttResponseData.
+
+        /* Read tableName from query */
+        cTableName = poRequest:URI:GetQueryValue("tableName").
+        IF cTableName = "" OR cTableName = ? THEN DO:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("error", "tableName is required").
+            oJsonResponse:Add("success", FALSE).
+
+            ttResponseData.statusCode = 400.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+            RETURN.
+        END.
+
+        oJsonArray = NEW JsonArray().
+        DEFINE VARIABLE oTypes AS JsonObject NO-UNDO.
+        oTypes = NEW JsonObject().
+
+        DO ON ERROR UNDO, THROW:
+            /* Use DataAdmin service to enumerate fields (via ddm service) */
+            cList = oMaskingService:GetFieldsForTable(cTableName).
+            DO i = 1 TO NUM-ENTRIES(cList):
+                cItem = TRIM(ENTRY(i, cList)).
+                IF cItem <> "" THEN DO:
+                    oJsonArray:Add(cItem).
+                    /* Discover type via dynamic buffer */
+                    DEFINE VARIABLE hBuf AS HANDLE NO-UNDO.
+                    DEFINE VARIABLE hFld AS HANDLE NO-UNDO.
+                    CREATE BUFFER hBuf FOR TABLE cTableName.
+                    hFld = hBuf:BUFFER-FIELD(cItem) NO-ERROR.
+                    IF VALID-HANDLE(hFld) THEN
+                        oTypes:Add(cItem, hFld:DATA-TYPE).
+                    DELETE OBJECT hBuf NO-ERROR.
+                END.
+            END.
+        END.
+
+        oJsonResponse = NEW JsonObject().
+        oJsonResponse:Add("tableName", cTableName).
+        oJsonResponse:Add("fields", oJsonArray).
+        oJsonResponse:Add("fieldTypes", oTypes).
+        oJsonResponse:Add("success", TRUE).
+
+        ttResponseData.statusCode = 200.
+        ttResponseData.contentType = "application/json".
+        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+        ttResponseData.success = TRUE.
+
+        CATCH oError AS Progress.Lang.Error:
+            oJsonResponse = NEW JsonObject().
+            oJsonResponse:Add("success", FALSE).
+            oJsonResponse:Add("error", oError:GetMessage(1)).
+            ttResponseData.statusCode = 500.
+            ttResponseData.contentType = "application/json".
+            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
+            ttResponseData.success = FALSE.
+        END CATCH.
+    END METHOD.
     /*------------------------------------------------------------------------------
      Purpose: Handle list roles with counts
     ------------------------------------------------------------------------------*/
@@ -637,22 +947,6 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cPath = poRequest:GetPathParameter("action").
         
         CASE cPath:
-            WHEN "set-ddm-config" THEN DO:
-                /* Set DDM configuration for a field */
-                HandleSetDDMConfig(poRequest, OUTPUT TABLE ttResponseData).
-                FIND FIRST ttResponseData NO-ERROR.
-                IF AVAILABLE ttResponseData THEN DO:
-                    oResponse:StatusCode = ttResponseData.statusCode.
-                    oResponse:ContentType = ttResponseData.contentType.
-                    cResponseBody = ttResponseData.jsonResponse.
-                END.
-                ELSE DO:
-                    oResponse:StatusCode = 500.
-                    oResponse:ContentType = "application/json".
-                    cResponseBody = '~{"error":"Internal server error","success":false}'.
-                END.
-            END.
-            
             WHEN "configure-field" THEN DO:
                 /* Configure field masking */
                 HandleConfigureField(poRequest, OUTPUT TABLE ttResponseData).
@@ -764,6 +1058,22 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
                     cResponseBody = '~{"error":"Internal server error","success":false}'.
                 END.
             END.
+
+            WHEN "grant-roles" THEN DO:
+                /* Grant one role to multiple users */
+                HandleGrantRoles(poRequest, OUTPUT TABLE ttResponseData).
+                FIND FIRST ttResponseData NO-ERROR.
+                IF AVAILABLE ttResponseData THEN DO:
+                    oResponse:StatusCode = ttResponseData.statusCode.
+                    oResponse:ContentType = ttResponseData.contentType.
+                    cResponseBody = ttResponseData.jsonResponse.
+                END.
+                ELSE DO:
+                    oResponse:StatusCode = 500.
+                    oResponse:ContentType = "application/json".
+                    cResponseBody = '~{"error":"Internal server error","success":false}'.
+                END.
+            END.
             
             WHEN "create-user" THEN DO:
                 /* Create user */
@@ -844,22 +1154,6 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         cPath = poRequest:GetPathParameter("action").
         
         CASE cPath:
-            WHEN "remove-ddm-config" THEN DO:
-                /* Remove DDM configuration from a field */
-                HandleRemoveDDMConfig(poRequest, OUTPUT TABLE ttResponseData).
-                FIND FIRST ttResponseData NO-ERROR.
-                IF AVAILABLE ttResponseData THEN DO:
-                    oResponse:StatusCode = ttResponseData.statusCode.
-                    oResponse:ContentType = ttResponseData.contentType.
-                    cResponseBody = ttResponseData.jsonResponse.
-                END.
-                ELSE DO:
-                    oResponse:StatusCode = 500.
-                    oResponse:ContentType = "application/json".
-                    cResponseBody = '~{"error":"Internal server error","success":false}'.
-                END.
-            END.
-            
             WHEN "delete-auth-tag" THEN DO:
                 /* Delete authorization tag */
                 HandleDeleteAuthTag(poRequest, OUTPUT TABLE ttResponseData).
@@ -955,53 +1249,6 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
     END METHOD.
 
     /*------------------------------------------------------------------------------
-     Purpose: Handle set DDM configuration request
-     Notes:   Uses the actual OpenEdge 12.8 DDM API
-    ------------------------------------------------------------------------------*/
-    METHOD PRIVATE VOID HandleSetDDMConfig(INPUT poRequest AS IWebRequest,
-                                           OUTPUT TABLE ttResponseData):
-        
-        DEFINE VARIABLE oJsonRequest AS JsonObject NO-UNDO.
-        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
-        DEFINE VARIABLE cTableName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cFieldName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cMaskValue AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cAuthTag AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE lSuccess AS LOGICAL NO-UNDO.
-        
-        EMPTY TEMP-TABLE ttResponseData.
-        CREATE ttResponseData.
-        
-        /* Parse request body */
-        oJsonRequest = CAST(poRequest:Entity, JsonObject).
-        
-        cTableName = oJsonRequest:GetCharacter("tableName").
-        cFieldName = oJsonRequest:GetCharacter("fieldName").
-        cMaskValue = oJsonRequest:GetCharacter("maskValue").
-        cAuthTag = oJsonRequest:GetCharacter("authTag").
-        
-        /* Set DDM configuration using the actual OpenEdge API */
-        DO ON ERROR UNDO, THROW:
-            lSuccess = oMaskingService:SetFieldDDMConfig(cTableName, cFieldName, cMaskValue, cAuthTag).
-        END.
-        
-        /* Build response */
-        oJsonResponse = NEW JsonObject().
-        oJsonResponse:Add("tableName", cTableName).
-        oJsonResponse:Add("fieldName", cFieldName).
-        oJsonResponse:Add("maskValue", cMaskValue).
-        oJsonResponse:Add("authTag", cAuthTag).
-        oJsonResponse:Add("success", lSuccess).
-        oJsonResponse:Add("message", IF lSuccess THEN "DDM configuration set successfully" ELSE "Failed to set DDM configuration").
-        
-        ttResponseData.statusCode = IF lSuccess THEN 200 ELSE 400.
-        ttResponseData.contentType = "application/json".
-        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
-        ttResponseData.success = lSuccess.
-        
-    END METHOD.
-
-    /*------------------------------------------------------------------------------
      Purpose: Handle configure field masking request
      Notes:   Uses high-level ConfigureFieldMasking method
     ------------------------------------------------------------------------------*/
@@ -1051,91 +1298,7 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         
     END METHOD.
 
-    /*------------------------------------------------------------------------------
-     Purpose: Handle remove DDM configuration request
-     Notes:   Uses RemoveFieldDDMConfig method
-    ------------------------------------------------------------------------------*/
-    METHOD PRIVATE VOID HandleRemoveDDMConfig(INPUT poRequest AS IWebRequest,
-                                              OUTPUT TABLE ttResponseData):
-        
-        DEFINE VARIABLE oJsonRequest AS JsonObject NO-UNDO.
-        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
-        DEFINE VARIABLE cTableName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cFieldName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE lSuccess AS LOGICAL NO-UNDO.
-        
-        EMPTY TEMP-TABLE ttResponseData.
-        CREATE ttResponseData.
-        
-        /* Parse request body */
-        oJsonRequest = CAST(poRequest:Entity, JsonObject).
-        
-        cTableName = oJsonRequest:GetCharacter("tableName").
-        cFieldName = oJsonRequest:GetCharacter("fieldName").
-        
-        /* Remove DDM configuration */
-        DO ON ERROR UNDO, THROW:
-            lSuccess = oMaskingService:RemoveFieldDDMConfig(cTableName, cFieldName).
-        END.
-        
-        /* Build response */
-        oJsonResponse = NEW JsonObject().
-        oJsonResponse:Add("tableName", cTableName).
-        oJsonResponse:Add("fieldName", cFieldName).
-        oJsonResponse:Add("success", lSuccess).
-        oJsonResponse:Add("message", IF lSuccess THEN "DDM configuration removed successfully" ELSE "Failed to remove DDM configuration").
-        
-        ttResponseData.statusCode = IF lSuccess THEN 200 ELSE 400.
-        ttResponseData.contentType = "application/json".
-        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
-        ttResponseData.success = lSuccess.
-        
-    END METHOD.
-
-    /*------------------------------------------------------------------------------
-     Purpose: Handle get DDM configuration request
-     Notes:   Note: OpenEdge 12.8 doesn't provide direct getter, this is a placeholder
-    ------------------------------------------------------------------------------*/
-    METHOD PRIVATE VOID HandleGetDDMConfig(INPUT poRequest AS IWebRequest,
-                                           OUTPUT TABLE ttResponseData):
-        
-        DEFINE VARIABLE oJsonResponse AS JsonObject NO-UNDO.
-        DEFINE VARIABLE cTableName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cFieldName AS CHARACTER NO-UNDO.
-        DEFINE VARIABLE cUserName AS CHARACTER NO-UNDO.
-        EMPTY TEMP-TABLE ttResponseData.
-        CREATE ttResponseData.
-
-        /* Get parameters from query string via URI helper */
-        cTableName = poRequest:URI:GetQueryValue("tableName").
-        cFieldName = poRequest:URI:GetQueryValue("fieldName").
-        cUserName  = poRequest:URI:GetQueryValue("userName").
-        IF cTableName = "" OR cTableName = ? OR cFieldName = "" OR cFieldName = ? THEN DO:
-            oJsonResponse = NEW JsonObject().
-            oJsonResponse:Add("error", "tableName and fieldName parameters required").
-            oJsonResponse:Add("success", FALSE).
-            
-            ttResponseData.statusCode = 400.
-            ttResponseData.contentType = "application/json".
-            ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
-            ttResponseData.success = FALSE.
-            RETURN.
-        END.
-        
-        /* Build response - Note: Actual implementation would need field permission queries */
-        oJsonResponse = NEW JsonObject().
-        oJsonResponse:Add("tableName", cTableName).
-        oJsonResponse:Add("fieldName", cFieldName).
-        oJsonResponse:Add("message", "DDM configuration retrieval not directly supported by OpenEdge 12.8 API. Use field permissions or DataAdmin queries.").
-        oJsonResponse:Add("success", FALSE).
-        
-        ttResponseData.statusCode = 501. /* Not Implemented */
-        ttResponseData.contentType = "application/json".
-        ttResponseData.jsonResponse = oJsonResponse:GetJsonText().
-        ttResponseData.success = FALSE.
-        
-    END METHOD.
-
+    
     /*------------------------------------------------------------------------------
      Purpose: Handle get mask and authorization tag for field request
      Notes:   Uses GetMaskAndAuthTagForField method
@@ -1957,36 +2120,28 @@ CLASS webhandlers.MaskingApiHandler INHERITS WebHandler:
         
         oMethods = NEW JsonArray().
         
-        /* setDDMConfig */
-        oMethod = NEW JsonObject().
-        oMethod:Add("method", "setDDMConfig").
-        oMethod:Add("description", "Set DDM configuration with mask value and authorization tag").
-        oMethod:Add("parameters", "tablename, fieldname, maskval, authtag").
-        oMethod:Add("endpoint", "POST /api/masking/set-ddm-config").
-        oMethods:Add(oMethod).
-        
-        /* unsetDDMMask */
-        oMethod = NEW JsonObject().
-        oMethod:Add("method", "unsetDDMMask").
-        oMethod:Add("description", "Remove mask value for a field").
-        oMethod:Add("parameters", "tablename, fieldname").
-        oMethod:Add("endpoint", "DELETE /api/masking/remove-ddm-config").
-        oMethods:Add(oMethod).
-        
-        /* unsetDDMAuthTag */
-        oMethod = NEW JsonObject().
-        oMethod:Add("method", "unsetDDMAuthTag").
-        oMethod:Add("description", "Remove authorization tag for a field").
-        oMethod:Add("parameters", "tablename, fieldname").
-        oMethod:Add("endpoint", "DELETE /api/masking/remove-ddm-config").
-        oMethods:Add(oMethod).
-        
         /* ConfigureFieldMasking */
         oMethod = NEW JsonObject().
         oMethod:Add("method", "ConfigureFieldMasking").
         oMethod:Add("description", "High-level field masking configuration").
         oMethod:Add("parameters", "tablename, fieldname, maskingtype, maskingvalue, authtag").
         oMethod:Add("endpoint", "POST /api/masking/configure-field").
+        oMethods:Add(oMethod).
+        
+        /* UnsetMask */
+        oMethod = NEW JsonObject().
+        oMethod:Add("method", "UnsetMask").
+        oMethod:Add("description", "Remove mask value for a field").
+        oMethod:Add("parameters", "tablename, fieldname").
+        oMethod:Add("endpoint", "POST /api/masking/unset-mask").
+        oMethods:Add(oMethod).
+        
+        /* UnsetAuthTag */
+        oMethod = NEW JsonObject().
+        oMethod:Add("method", "UnsetAuthTag").
+        oMethod:Add("description", "Remove authorization tag for a field").
+        oMethod:Add("parameters", "tablename, fieldname").
+        oMethod:Add("endpoint", "POST /api/masking/unset-auth-tag").
         oMethods:Add(oMethod).
         
         RETURN oMethods.

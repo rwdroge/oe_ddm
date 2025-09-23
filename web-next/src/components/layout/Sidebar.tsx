@@ -27,7 +27,6 @@ import {
 // 5) Operations & insights (viewer, monitoring, audit)
 const navigation = [
   { name: 'Dashboard', href: '/', icon: HomeIcon },
-  { name: 'Configuration', href: '/configuration', icon: CogIcon },
   { name: 'Role Management', href: '/role-management', icon: UserGroupIcon },
   { name: 'Authorization Tags', href: '/authorization-tags', icon: TagIcon },
   { name: 'Field Masking', href: '/field-masking', icon: EyeSlashIcon },

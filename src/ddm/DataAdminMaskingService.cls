@@ -38,21 +38,78 @@ CLASS ddm.DataAdminMaskingService:
     END CONSTRUCTOR.
 
     /*------------------------------------------------------------------------------
-     Purpose: Get DDM configuration for a specific field
-     Notes:   OpenEdge 12.8 DDM API only provides setDDMConfig, not a getter method
-              This method would need to be implemented using other DataAdmin APIs
+     Purpose: Get DDM config (mask and auth tag) for a field using DataAdmin
+     Notes:   Returns TRUE if values were retrieved, with outputs populated
     ------------------------------------------------------------------------------*/
-    METHOD PUBLIC CHARACTER GetFieldDDMConfig(INPUT pcTableName AS CHARACTER,
-                                              INPUT pcFieldName AS CHARACTER,
-                                              INPUT pcUserName AS CHARACTER):
-        
-        /* Note: OpenEdge 12.8 DDM API doesn't provide a direct getter method.
-           This would need to be implemented by querying field permissions or
-           other DataAdmin objects to determine current DDM configuration. */
-        
-        UNDO, THROW NEW Progress.Lang.AppError(
-            "GetFieldDDMConfig not directly supported by OpenEdge 12.8 DDM API. Use field permissions or other DataAdmin queries.").
-        
+    METHOD PUBLIC LOGICAL GetFieldDDMConfig(INPUT pcTableName AS CHARACTER,
+                                               INPUT pcFieldName AS CHARACTER,
+                                               OUTPUT pcMaskValue AS CHARACTER,
+                                               OUTPUT pcAuthTag AS CHARACTER):
+        DEFINE VARIABLE cMask AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cTag  AS CHARACTER NO-UNDO.
+
+        pcMaskValue = "".
+        pcAuthTag   = "".
+
+        DO ON ERROR UNDO, THROW:
+            /* OpenEdge 12.8 adds GetFieldDDMConfig to DataAdminService */
+            oDataAdminService:GetFieldDDMConfig(pcTableName, pcFieldName, OUTPUT cMask, OUTPUT cTag) NO-ERROR.
+            IF ERROR-STATUS:ERROR THEN RETURN FALSE.
+            IF cMask = ? THEN cMask = "".
+            IF cTag  = ? THEN cTag  = "".
+            pcMaskValue = TRIM(cMask).
+            pcAuthTag   = TRIM(cTag).
+            RETURN TRUE.
+        END.
+
+        CATCH oError AS Progress.Lang.Error:
+            RETURN FALSE.
+        END CATCH.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List all user tables as a comma-separated string (user tables only)
+     Notes:   Interface intended for DataAdmin-backed enumeration; current
+              implementation uses metaschema for compatibility and will be
+              refactored to DataAdmin-specific APIs without changing signature.
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC CHARACTER GetAllTables():
+        DEFINE VARIABLE cResult    AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE cTableName AS CHARACTER NO-UNDO.
+
+        FOR EACH _File NO-LOCK WHERE _File._tbl-type = "T" AND _File._hidden = FALSE:
+            cTableName = _File._File-Name.
+            IF cResult = "" THEN cResult = cTableName.
+            ELSE cResult = cResult + ", " + cTableName.
+        END.
+
+        RETURN cResult.
+    END METHOD.
+
+    /*------------------------------------------------------------------------------
+     Purpose: List all fields for a given table as a comma-separated string
+     Notes:   Interface intended for DataAdmin-backed enumeration; current
+              implementation uses dynamic buffer and will be refactored to
+              DataAdmin-specific APIs without changing signature.
+    ------------------------------------------------------------------------------*/
+    METHOD PUBLIC CHARACTER GetFieldsForTable(INPUT pcTableName AS CHARACTER):
+        DEFINE VARIABLE cResult  AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE hBuffer  AS HANDLE    NO-UNDO.
+        DEFINE VARIABLE i        AS INTEGER   NO-UNDO.
+        DEFINE VARIABLE hField   AS HANDLE    NO-UNDO.
+
+        IF pcTableName = "" OR pcTableName = ? THEN
+            RETURN "".
+
+        CREATE BUFFER hBuffer FOR TABLE pcTableName.
+        DO i = 1 TO hBuffer:NUM-FIELDS:
+            hField = hBuffer:BUFFER-FIELD(i).
+            IF cResult = "" THEN cResult = hField:NAME.
+            ELSE cResult = cResult + ", " + hField:NAME.
+        END.
+        DELETE OBJECT hBuffer NO-ERROR.
+
+        RETURN cResult.
     END METHOD.
 
     /*------------------------------------------------------------------------------

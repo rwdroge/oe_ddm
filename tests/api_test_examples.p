@@ -36,7 +36,8 @@ MESSAGE SUBSTITUTE("Health Check Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
 
-/* Test 2: Set DDM Configuration */
+/* Test 2: Set DDM Configuration (DEPRECATED) */
+/*
 MESSAGE "=== Test 2: Set DDM Configuration ===" VIEW-AS ALERT-BOX.
 
 oJsonRequest = NEW JsonObject().
@@ -51,6 +52,7 @@ oResponse = oHttpClient:Execute(oRequest).
 MESSAGE SUBSTITUTE("Set DDM Config Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
+*/
 
 /* Test 3: Configure Field Masking */
 MESSAGE "=== Test 3: Configure Field Masking ===" VIEW-AS ALERT-BOX.
@@ -147,6 +149,25 @@ MESSAGE SUBSTITUTE("Grant Role Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
 
+/* Test 8b: Grant Role to Multiple Users */
+MESSAGE "=== Test 8b: Grant Role to Multiple Users ===" VIEW-AS ALERT-BOX.
+
+oJsonRequest = NEW JsonObject().
+/* Example users; adjust as needed */
+DEFINE VARIABLE oUsers AS JsonArray NO-UNDO.
+oUsers = NEW JsonArray().
+oUsers:Add("testuser").
+oUsers:Add("anotheruser").
+oJsonRequest:Add("userNames", oUsers).
+oJsonRequest:Add("roleName", "DataAnalyst").
+
+oRequest = RequestBuilder:Post(cBaseUrl + "/grant-roles", oJsonRequest):Request.
+oResponse = oHttpClient:Execute(oRequest).
+
+MESSAGE SUBSTITUTE("Grant Roles Response:~nStatus: &1~nContent: &2",
+                  oResponse:StatusCode,
+                  oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
+
 /* Test 9: Get User Role Grants */
 MESSAGE "=== Test 9: Get User Role Grants ===" VIEW-AS ALERT-BOX.
 
@@ -230,7 +251,8 @@ MESSAGE SUBSTITUTE("Update Auth Tag Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
 
-/* Test 14: Remove DDM Configuration */
+/* Test 14: Remove DDM Configuration (DEPRECATED) */
+/*
 MESSAGE "=== Test 14: Remove DDM Configuration ===" VIEW-AS ALERT-BOX.
 
 oJsonRequest = NEW JsonObject().
@@ -243,6 +265,7 @@ oResponse = oHttpClient:Execute(oRequest).
 MESSAGE SUBSTITUTE("Remove DDM Config Response:~nStatus: &1~nContent: &2",
                   oResponse:StatusCode,
                   oResponse:Entity:ToString()) VIEW-AS ALERT-BOX.
+*/
 
 /* Test 15: Delete Role */
 MESSAGE "=== Test 15: Delete Role ===" VIEW-AS ALERT-BOX.

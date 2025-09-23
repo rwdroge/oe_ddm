@@ -21,8 +21,6 @@ servers:
 tags:
   - name: Health
     description: API health and status endpoints
-  - name: DDM Configuration
-    description: Dynamic Data Masking configuration operations
   - name: Field Operations
     description: Field-level masking operations
   - name: Authorization Tags
@@ -50,32 +48,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
 
-  /set-ddm-config:
-    post:
-      tags:
-        - DDM Configuration
-      summary: Set DDM configuration
-      description: Configure DDM settings for a specific field with mask value and authorization tag
-      operationId: setDDMConfig
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DDMConfigRequest'
-      responses:
-        '200':
-          description: DDM configuration set successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DDMConfigResponse'
-        '400':
-          description: Invalid request or configuration failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /grant-security-admin:
     get:
@@ -497,32 +469,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /remove-ddm-config:
-    delete:
-      tags:
-        - DDM Configuration
-      summary: Remove DDM configuration
-      description: Remove DDM configuration from a specific field
-      operationId: removeDDMConfig
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FieldRequest'
-      responses:
-        '200':
-          description: DDM configuration removed successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OperationResponse'
-        '400':
-          description: Invalid request or removal failed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /mask-and-auth-tag:
     get:
@@ -687,46 +633,6 @@ components:
           type: string
           format: date-time
 
-    DDMConfigRequest:
-      type: object
-      required:
-        - tableName
-        - fieldName
-        - maskValue
-        - authTag
-      properties:
-        tableName:
-          type: string
-          description: Name of the table
-          example: "Customer"
-        fieldName:
-          type: string
-          description: Name of the field
-          example: "CustNum"
-        maskValue:
-          type: string
-          description: Mask value to apply
-          example: "****"
-        authTag:
-          type: string
-          description: Authorization tag
-          example: "SENSITIVE"
-
-    DDMConfigResponse:
-      type: object
-      properties:
-        tableName:
-          type: string
-        fieldName:
-          type: string
-        maskValue:
-          type: string
-        authTag:
-          type: string
-        success:
-          type: boolean
-        message:
-          type: string
 
     ConfigureFieldRequest:
       type: object
@@ -752,12 +658,22 @@ components:
           example: "PARTIAL"
         maskingValue:
           type: string
-          description: Masking value
-          example: "XXXX"
+          description: |
+            Mask format string. Available configurations:
+            - D — Default mask provided by clients. Example: `D:`
+            - N — Null mask for any data type. Example: `N:`
+            - L — Literal mask for any data type except RAW and LOGICAL, if compatible with the field's data type. Example: `L:MASKED`
+            - P — Partial mask for character data type only, `P:start,maskChar,count`. Example: `P:0,X,4`
+
+            Note: The mask transformation must preserve the original value's data type. For example, a numeric value such as `1234` cannot be converted to a non-numeric value such as `XXXX`.
+          example: "D:"
         authTag:
           type: string
-          description: Authorization tag
-          example: "PII"
+          description: |
+            Authorization tag. Must begin with `#DDM_See_` (case-insensitive), be at most 64 characters total,
+            contain only A-Z, a-z, 0-9, and these special characters: `_ . - # $ % &`. No spaces allowed.
+            Must include non-empty content after the required prefix.
+          example: "#DDM_See_PII"
 
     ConfigureFieldResponse:
       type: object
@@ -804,8 +720,11 @@ components:
           example: "TestDomain"
         authTagName:
           type: string
-          description: Name of the authorization tag
-          example: "CONFIDENTIAL"
+          description: |
+            Name of the authorization tag. Must begin with `#DDM_See_` (case-insensitive), be at most 64 characters total,
+            contain only A-Z, a-z, 0-9, and these special characters: `_ . - # $ % &`. No spaces allowed.
+            Must include non-empty content after the required prefix.
+          example: "#DDM_See_CONFIDENTIAL"
 
     AuthTagResponse:
       type: object
@@ -832,12 +751,14 @@ components:
           example: "TestDomain"
         authTagName:
           type: string
-          description: Current name of the authorization tag
-          example: "CONFIDENTIAL"
+          description: |
+            Current name of the authorization tag. Must follow the DDM authorization tag format requirements.
+          example: "#DDM_See_CONFIDENTIAL"
         newName:
           type: string
-          description: New name for the authorization tag
-          example: "TOP_SECRET"
+          description: |
+            New name for the authorization tag. Must follow the DDM authorization tag format requirements.
+          example: "#DDM_See_TopSecret"
 
     UpdateAuthTagResponse:
       type: object

@@ -7,8 +7,9 @@ import { z } from 'zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Select } from '@/components/ui/Select'
 import { DDMApiService, getApiErrorMessage, getResponseErrorMessage } from '@/services/api'
-import type { RoleRequest, GrantRoleRequest, DeleteGrantedRoleRequest } from '@/types/api'
+import type { RoleRequest, GrantRoleRequest, DeleteGrantedRoleRequest, GrantRolesRequest, GrantRolesResponse } from '@/types/api'
 import { UserGroupIcon, PlusIcon, UserPlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import toast from 'react-hot-toast'
 
@@ -29,10 +30,16 @@ const revokeRoleSchema = z.object({
   grantId: z.string().min(1, 'Grant ID is required'),
 })
 
+const grantRolesSchema = z.object({
+  userNames: z.array(z.string().min(1)).min(1, 'Select at least one user'),
+  roleName: z.string().min(1, 'Role name is required'),
+})
+
 type CreateRoleForm = z.infer<typeof createRoleSchema>
 type DeleteRoleForm = z.infer<typeof deleteRoleSchema>
 type GrantRoleForm = z.infer<typeof grantRoleSchema>
 type RevokeRoleForm = z.infer<typeof revokeRoleSchema>
+type GrantRolesForm = z.infer<typeof grantRolesSchema>
 
 export default function RoleManagement() {
   const [loading, setLoading] = useState(false)
@@ -40,6 +47,8 @@ export default function RoleManagement() {
   const [roles, setRoles] = useState<{ name: string; count: number }[]>([])
   const [roleSearch, setRoleSearch] = useState('')
   const [sortByCountDesc, setSortByCountDesc] = useState(false)
+  const [users, setUsers] = useState<string[]>([])
+  const [roleNames, setRoleNames] = useState<string[]>([])
 
   const loadRoles = async () => {
     try {
@@ -59,8 +68,68 @@ export default function RoleManagement() {
     }
   }
 
+  const onGrantBulkSubmit = async (data: GrantRolesForm) => {
+    try {
+      setLoading(true)
+      const request: GrantRolesRequest = {
+        userNames: data.userNames,
+        roleName: data.roleName,
+      }
+      const response = await DDMApiService.grantRoles(request)
+      // Summarize results
+      const ok = response.success
+      const total = response.results?.length || 0
+      const succeeded = response.results?.filter(r => r.success).length || 0
+      if (ok) {
+        toast.success(`Granted role "${data.roleName}" to ${succeeded}/${total} users`)
+        grantBulkForm.reset({ userNames: [], roleName: '' })
+      } else {
+        // show partial or failure details
+        const errors = (response.results || []).filter(r => !r.success).map(r => `${r.userName}: ${r.error || 'failed'}`).join(', ')
+        toast.error(getResponseErrorMessage(response as any, errors || 'Failed to grant role to some or all users'))
+      }
+      // keep lists fresh
+      loadRoles()
+    } catch (error: any) {
+      console.error('Bulk grant role error:', error)
+      toast.error(getApiErrorMessage(error, 'Failed to grant role to multiple users'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadUsers = async () => {
+    try {
+      const res = await DDMApiService.getUsers()
+      const list = (res.result || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      setUsers(list)
+    } catch (e) {
+      console.error('Failed to load users', e)
+      setUsers([])
+    }
+  }
+
+  const loadRoleNames = async () => {
+    try {
+      const res = await DDMApiService.getRoles()
+      const list = (res.result || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      setRoleNames(list)
+    } catch (e) {
+      console.error('Failed to load role names', e)
+      setRoleNames([])
+    }
+  }
+
   useEffect(() => {
     loadRoles()
+    loadUsers()
+    loadRoleNames()
   }, [])
 
   const createForm = useForm<CreateRoleForm>({
@@ -73,6 +142,11 @@ export default function RoleManagement() {
 
   const grantForm = useForm<GrantRoleForm>({
     resolver: zodResolver(grantRoleSchema),
+  })
+
+  const grantBulkForm = useForm<GrantRolesForm>({
+    resolver: zodResolver(grantRolesSchema),
+    defaultValues: { userNames: [] },
   })
 
   const revokeForm = useForm<RevokeRoleForm>({
@@ -92,6 +166,7 @@ export default function RoleManagement() {
         toast.success(`Role "${data.roleName}" created successfully`)
         createForm.reset()
         loadRoles()
+        loadRoleNames()
       } else {
         toast.error(getResponseErrorMessage(response as any, 'Failed to create role'))
       }
@@ -116,6 +191,7 @@ export default function RoleManagement() {
         toast.success(`Role "${data.roleName}" deleted successfully`)
         deleteForm.reset()
         loadRoles()
+        loadRoleNames()
       } else {
         toast.error(getResponseErrorMessage(response as any, 'Failed to delete role'))
       }
@@ -396,11 +472,23 @@ export default function RoleManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     User Name
                   </label>
-                  <Input
-                    {...grantForm.register('userName')}
-                    placeholder="e.g., testuser, john.doe"
-                    className={grantForm.formState.errors.userName ? 'border-red-500' : ''}
-                  />
+                  {users.length > 0 ? (
+                    <Select
+                      {...grantForm.register('userName')}
+                      className={grantForm.formState.errors.userName ? 'border-red-500' : ''}
+                    >
+                      <option value="">Select a user...</option>
+                      {users.map((u) => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input
+                      {...grantForm.register('userName')}
+                      placeholder="e.g., testuser, john.doe"
+                      className={grantForm.formState.errors.userName ? 'border-red-500' : ''}
+                    />
+                  )}
                   {grantForm.formState.errors.userName && (
                     <p className="mt-1 text-sm text-red-600">
                       {grantForm.formState.errors.userName.message}
@@ -412,11 +500,25 @@ export default function RoleManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Role Name
                   </label>
-                  <Input
-                    {...grantForm.register('roleName')}
-                    placeholder="e.g., DataAnalyst"
-                    className={grantForm.formState.errors.roleName ? 'border-red-500' : ''}
-                  />
+                  {roleNames.length > 0 ? (
+                    <Select
+                      {...grantForm.register('roleName')}
+                      className={grantForm.formState.errors.roleName ? 'border-red-500' : ''}
+                      onMouseDown={loadRoleNames}
+                      onFocus={loadRoleNames}
+                    >
+                      <option value="">Select a role...</option>
+                      {roleNames.map((r) => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input
+                      {...grantForm.register('roleName')}
+                      placeholder="e.g., DataAnalyst"
+                      className={grantForm.formState.errors.roleName ? 'border-red-500' : ''}
+                    />
+                  )}
                   {grantForm.formState.errors.roleName && (
                     <p className="mt-1 text-sm text-red-600">
                       {grantForm.formState.errors.roleName.message}
@@ -452,6 +554,63 @@ export default function RoleManagement() {
                 </Button>
               </div>
             </form>
+
+            <div className="mt-10 border-t pt-8">
+              <CardTitle className="mb-2 text-base">Grant Role to Multiple Users</CardTitle>
+              <CardDescription>Choose one role and multiple users to grant in a single operation</CardDescription>
+              <form onSubmit={grantBulkForm.handleSubmit(onGrantBulkSubmit)} className="space-y-6 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Users</label>
+                    {users.length > 0 ? (
+                      <Select
+                        multiple
+                        {...grantBulkForm.register('userNames')}
+                        className={grantBulkForm.formState.errors.userNames ? 'border-red-500 h-32' : 'h-32'}
+                      >
+                        {users.map((u) => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Input disabled placeholder="No users available" />
+                    )}
+                    {grantBulkForm.formState.errors.userNames && (
+                      <p className="mt-1 text-sm text-red-600">{(grantBulkForm.formState.errors.userNames as any)?.message}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-500">Hold Ctrl/Cmd to select multiple users</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Role Name</label>
+                    {roleNames.length > 0 ? (
+                      <Select
+                        {...grantBulkForm.register('roleName')}
+                        className={grantBulkForm.formState.errors.roleName ? 'border-red-500' : ''}
+                        onMouseDown={loadRoleNames}
+                        onFocus={loadRoleNames}
+                      >
+                        <option value="">Select a role...</option>
+                        {roleNames.map((r) => (
+                          <option key={r} value={r}>{r}</option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Input disabled placeholder="No roles available" />
+                    )}
+                    {grantBulkForm.formState.errors.roleName && (
+                      <p className="mt-1 text-sm text-red-600">{grantBulkForm.formState.errors.roleName.message}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Granting...' : 'Grant Role to Selected Users'}
+                  </Button>
+                </div>
+              </form>
+            </div>
           </CardContent>
         </Card>
       )}

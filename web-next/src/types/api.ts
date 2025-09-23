@@ -8,22 +8,7 @@ export interface HealthResponse {
   timestamp: string;
 }
 
-export interface DDMConfigRequest {
-  tableName: string;
-  fieldName: string;
-  maskValue: string;
-  authTag: string;
-}
-
-export interface DDMConfigResponse {
-  tableName: string;
-  fieldName: string;
-  maskValue: string;
-  authTag: string;
-  success: boolean;
-  message: string;
-  error?: string;
-}
+/* Deprecated: direct DDMConfig types removed in favor of high-level field masking */
 
 export interface ConfigureFieldRequest {
   tableName: string;
@@ -97,6 +82,28 @@ export interface GrantRoleResponse {
   userName: string;
   roleName: string;
   success: boolean;
+  message: string;
+  error?: string;
+}
+
+// Bulk grant
+export interface GrantRolesRequest {
+  userNames: string[]; // users to grant the same role to
+  roleName: string;
+}
+
+export interface GrantRolesResponseItem {
+  userName: string;
+  roleName: string;
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface GrantRolesResponse {
+  roleName: string;
+  results: GrantRolesResponseItem[]; // per-user outcome
+  success: boolean; // true if all succeeded
   message: string;
   error?: string;
 }
@@ -208,6 +215,35 @@ export interface RolesWithCountsResponse {
 
 export interface AuthTagsWithRolesResponse {
   result: string; // comma-separated items: tag|role
+  success: boolean;
+  error?: string;
+}
+
+// Schema lists
+export interface TablesListResponse {
+  tables: string[];
+  success: boolean;
+  error?: string;
+}
+
+export interface FieldsListResponse {
+  tableName: string;
+  fields: string[];
+  fieldTypes?: Record<string, string>;
+  success: boolean;
+  error?: string;
+}
+
+export interface TableFieldConfigItem {
+  fieldName: string;
+  result: string; // backend-provided summary of mask/authTag for the field
+  maskValue?: string;
+  authTag?: string;
+}
+
+export interface TableConfigsResponse {
+  tableName: string;
+  items: TableFieldConfigItem[];
   success: boolean;
   error?: string;
 }
