@@ -33,7 +33,8 @@ oe_ddm/
 ├── license/               # OpenEdge license files
 │   └── placeholder_oe_cfg # Placeholder (replace with progress.cfg)
 ├── src/                   # Source code
-│   ├── ddm/               # Data masking engine
+│   ├── ddm/               # DDM service layer and related classes
+│   ├── webhandlers/       # PASOE web handlers (REST endpoints)
 │   ├── config/            # Configuration management
 │   ├── examples/          # Example programs
 │   └── test/              # Unit tests
@@ -115,13 +116,13 @@ Run the provided examples to see DDM in action:
 ```bash
 # Basic masking examples
 cd /workspaces/oe_ddm
-_progres -p src/examples/MaskingExample.p
+_progres -p src/examples/CorrectDDMExample.p
 
 # Advanced scenarios
-_progres -p src/examples/AdvancedMaskingExample.p
+_progres -p src/examples/ProperDDMExample.p
 
 # Database integration (requires sports2020 connection)
-_progres -p src/examples/DatabaseMaskingExample.p -db sports2020 -S 10000 -H sports2020-db
+_progres -p src/examples/ProperDDMExample.p -db sports2020 -S 10000 -H sports2020-db
 ```
 
 ### 2. REST API Setup
@@ -153,30 +154,36 @@ After that you can open your DDM UI at http://localhost:42137
 ### ABL API Usage
 
 ```abl
-/* Initialize the masking engine */
-DEFINE VARIABLE oMaskingEngine AS DataMaskingEngine NO-UNDO.
-oMaskingEngine = NEW DataMaskingEngine().
-
-/* Configure masking rules */
-oMaskingEngine:AddRule("Customer", "SSN", "SSN_MASK").
-oMaskingEngine:AddRule("Customer", "CreditCard", "CREDIT_CARD_MASK").
-
-/* Apply masking */
-oMaskingEngine:MaskTable("Customer").
+/* Example usage programs are provided under src/examples */
+/* Run them with _progres in the dev container or PASOE environment */
 ```
 
 ### REST API Usage
 
 ```bash
-# Mask a single value
-curl -X POST http://localhost:8810/api/masking/mask-value \
-  -H "Content-Type: application/json" \
-  -d '{"value": "123-45-6789", "maskType": "SSN_MASK"}'
+# Health check
+curl http://localhost:8810/api/masking/health
 
-# Add masking rule
-curl -X POST http://localhost:8810/api/masking/add-rule \
+# Configure field masking (set mask and authorization tag)
+curl -X POST http://localhost:8810/api/masking/configure-field \
   -H "Content-Type: application/json" \
-  -d '{"tableName": "Customer", "fieldName": "SSN", "maskType": "SSN_MASK"}'
+  -d '{
+    "tableName": "Customer",
+    "fieldName": "SSN",
+    "maskingType": "FULL",
+    "maskingValue": "*",
+    "authTag": "PII"
+  }'
+
+# Unset masking for a field
+curl -X POST http://localhost:8810/api/masking/unset-mask \
+  -H "Content-Type: application/json" \
+  -d '{"tableName": "Customer", "fieldName": "SSN"}'
+
+# Create/update/delete authorization tags
+curl -X POST http://localhost:8810/api/masking/create-auth-tag \
+  -H "Content-Type: application/json" \
+  -d '{"domainName": "GLOBAL", "authTagName": "PII"}'
 ```
 
 ### Configuration Files
@@ -206,17 +213,15 @@ Masking rules are defined in JSON configuration files in the `conf/` directory:
 
 ### Components
 
-1. **ABL Core Engine** (`src/ddm/`)
-   - `DataMaskingEngine.cls` - Main orchestration class
-   - `MaskingConfig.cls` - Configuration management
-   - `MaskingAlgorithms.cls` - Masking algorithms implementation
+1. **ABL Core/Service Layer** (`src/ddm/`)
+   - `DataAdminMaskingService.cls` - Main service orchestrating DDM operations via the OpenEdge DataAdmin DDM API
 
-2. **REST API Layer** (`src/api/`)
-   - `MaskingApiHandler.cls` - PASOE webhandler for REST endpoints
+2. **REST API Layer** (`src/webhandlers/`)
+   - `MaskingApiHandler.cls` - PASOE web handler exposing REST endpoints
    - Configured in `conf/openedge.properties`
 
-3. **Utilities** (`src/utils/`)
-   - `MaskingLogger.cls` - Audit logging and compliance tracking
+3. **Utilities** (as applicable)
+   - Audit logging and compliance tracking within service/handlers
 
 4. **Web UI** (`web-next/`)
    - Next.js-based administration interface
@@ -224,9 +229,8 @@ Masking rules are defined in JSON configuration files in the `conf/` directory:
    - Real-time API integration
 
 5. **Examples** (`src/examples/`)
-   - `MaskingExample.p` - Basic usage demonstrations
-   - `AdvancedMaskingExample.p` - Complex scenarios and performance testing
-   - `DatabaseMaskingExample.p` - Database integration examples
+   - `CorrectDDMExample.p` - Basic usage demonstrations
+   - `ProperDDMExample.p` - Complex scenarios, database integration, and performance testing
 
 ### Data Flow
 
