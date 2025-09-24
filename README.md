@@ -151,6 +151,10 @@ After that you can open your DDM UI at http://localhost:42137
 
 ## 📚 Examples and Usage
 
+Looking for the story behind this project and deep dives into the architecture? Read the full blog series here:
+
+- docs/blog/index.md
+
 ### ABL API Usage
 
 ```abl
@@ -380,6 +384,12 @@ flowchart LR
 - Access to OpenEdge database (sports2020 for testing)
 - Automated testing framework
 - Performance monitoring and optimization tools
+
+## Blog
+
+Read the blog series covering the origin story, architecture, debugging sessions, and roadmap:
+
+- docs/blog/index.md
 
 ## Contributing
 
