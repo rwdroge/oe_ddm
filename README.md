@@ -107,6 +107,29 @@ The following components should be automatically configured:
 - **OpenEdge MCP Server** - Provides AI assistant access to OpenEdge documentation and language reference
 - **Windsurf AI Assistant** - Integrated AI coding assistant with OpenEdge expertise
 
+### Step 5: Enable Dynamic Data Masking (required)
+
+Before you can use the Data Masking administration, you must enable Dynamic Data Masking (DDM) on each target database.
+
+```bash
+
+# Enable DDM
+proutil /path/to/your.db -C enableddm
+
+```
+
+Expected output:
+
+```text
+Feature Management: The feature Dynamic Data Masking has been enabled. (11165)
+The DDM feature enable has completed successfully. (20695)
+```
+
+Notes:
+- Replace `/path/to/your.db` with the absolute path to your database (for example, a copy of `sports2020.db`).
+- DDM requires a valid OpenEdge license that includes Dynamic Data Masking (Progress OEAS).
+- Run these commands on Linux inside your OpenEdge environment/container.
+
 ## 🚀 Quick Start Guide
 
 ### 1. ABL Examples

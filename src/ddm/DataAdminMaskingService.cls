@@ -255,11 +255,7 @@ CLASS ddm.DataAdminMaskingService:
         
         RETURN lSuccess.
         
-        CATCH oError AS Progress.Lang.Error:
-            UNDO, THROW NEW Progress.Lang.AppError(
-                SUBSTITUTE("Failed to set DDM config for field &1.&2: &3", 
-                          pcTableName, pcFieldName, oError:GetMessage(1))).
-        END CATCH.
+        
         
     END METHOD.
 
@@ -586,22 +582,23 @@ CLASS ddm.DataAdminMaskingService:
         DEFINE VARIABLE cResult AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cMaskValue AS CHARACTER NO-UNDO.
         DEFINE VARIABLE cAuthTag AS CHARACTER NO-UNDO.
+        DEFINE VARIABLE lSuccess AS LOGICAL NO-UNDO.
         
-        /* Use the GetFieldDDMConfig method from IDataAdminService */
-        /* Method signature: GetFieldDDMConfig(tableName, fieldName, userName, outputParams) */
+        /* Use the GetFieldDDMConfig method to retrieve mask and auth tag */
+        lSuccess = GetFieldDDMConfig(pcTableName, pcFieldName, OUTPUT cMaskValue, OUTPUT cAuthTag).
         
-        /* Call the DataAdmin service method to get DDM configuration */
-        oDataAdminService:GetFieldDDMConfig(pcTableName, pcFieldName, pcUserName, OUTPUT cResult) no-error.
-        
-        /* The GetFieldDDMConfig method should return the DDM configuration details */
-        /* including mask value and authorization tag information */
-        
-        IF cResult = "" OR cResult = ? THEN DO:
+        IF lSuccess THEN DO:
+            /* Format the result to show both mask value and authorization tag */
+            cResult = "Mask: " + (IF cMaskValue <> "" THEN cMaskValue ELSE "(none)") + 
+                     ", AuthTag: " + (IF cAuthTag <> "" THEN cAuthTag ELSE "(none)").
+        END.
+        ELSE DO:
             cResult = "No DDM configuration found for field '" + pcFieldName + 
                      "' in table '" + pcTableName + "'".
-            IF pcUserName <> "" AND pcUserName <> ? THEN
-                cResult = cResult + " for user '" + pcUserName + "'".
         END.
+        
+        /* Note: pcUserName parameter is currently not used in the underlying API */
+        /* Future enhancement: filter results based on user permissions */
         
         RETURN cResult.
         
