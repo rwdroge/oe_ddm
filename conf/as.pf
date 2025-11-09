@@ -1,0 +1,9 @@
+-T /tmp
+-db sports2020 -H sports2020-db -S 10000 -U ruben -P "" 
+-cpinternal UTF-8
+-cpstream UTF-8
+-cpcase basic
+-1 -mmax 2000 -b 
+-D 200
+-inp 32000
+-tok 5000

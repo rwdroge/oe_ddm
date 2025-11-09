@@ -1,0 +1,40 @@
+{
+	"name": "OpenEdge DevContainers - Windsurf",
+	"dockerComposeFile": "docker-compose.yaml",
+	"service": "devcontainer",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	// feature hack for docker-in-docker for Windsurf: fails to mount: installs 2.12.2 from local install
+  	"features": {
+		"ghcr.io/devcontainers/features/git:1": {},
+		"./feature/docker-in-docker": {}
+	},
+
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"extensions.verifySignature": false,
+				"abl.configuration.runtimes.default": "12.8",
+				"abl.configuration.runtimes": [
+					{ "name": "12.8", "path": "/usr/dlc" }
+				],
+				"abl.langServerJavaExecutable": "/opt/java/openjdk/bin/java",
+				"abl.buildMode": 1,
+				"code-runner.executorMap.abl": "_progres -b -pf .devcontainer/devcontainer.pf -p ${file}",
+				"code-runner.languageIdToFileExtensionMap": {
+					"abl": [".p", ".cls"]
+				}
+			},
+			"extensions": [
+				"riversidesoftware.openedge-abl-lsp@1.20.1"
+			]
+		}
+	},
+	"mounts": ["source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"],
+	"containerEnv": {
+		"PROPATH": "./src,./bin,${DLC}/tty,${DLC}/tty/OpenEdge.Core.pl,${DLC}/tty/netlib/OpenEdge.Net.pl,${DLC}/tty/OpenEdge.BusinessLogic.pl"
+	},
+	"forwardPorts": [ 3099 ],
+	"initializeCommand": "echo Initialize....",
+	"remoteUser": "openedge",
+	"postStartCommand": "git config --global user.name ${GIT_NAME} && git config --global user.email ${GIT_EMAIL}"	 
+}

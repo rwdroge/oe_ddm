@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+
+  devcontainer:
+    image: ${DEVCONTAINER_IMAGE}:${OE_VERSION}
+    hostname: devcontainer
+    privileged: true
+    user: openedge
+    volumes:
+      - ../..:/workspaces:cached
+      - ${PROGRESS_CFG}:/usr/dlc/progress.cfg
+      - ../.windsurf/.windsurf-server:/home/openedge/.windsurf-server
+      - ../.windsurf/.codeium:/home/openedge/.codeium
+    ports:
+      - ${DEBUG_PORT}:3099
+      # added port for react project
+      - 42137:42137
+    command: sleep infinity
+
+  sports2020-db:
+    image: ${DB_IMAGE}:${OE_VERSION}
+    hostname: sports2020-db
+    user: openedge
+    volumes:
+      - ${PROGRESS_CFG}:/usr/dlc/progress.cfg
+    ports:
+      - 10000-10010:10000-10010
+    environment:
+      - DBNAME=sports2020    
+      
+  sports2020-pas:
+    image: ${PAS_IMAGE}:${OE_VERSION}
+    hostname: sports2020-pas
+    user: openedge
+    volumes:
+      - ${PROGRESS_CFG}:/usr/dlc/progress.cfg
+      - ../src:/app/src
+      - ../conf/as.pf:/app/config/as.pf
+      - ../conf/openedge.properties:/app/pas/as/conf/openedge.properties
+      #- ../conf/otelconfig.json:/app/pas/as/openedge/otelconfig.json
+      #- ./logs:/app/pas/as/logs
+    ports:
+      - ${PAS_PORT}:8810
+      - ${PAS_HTTPS_PORT}:8811
+    environment:
+      - PASWEBHANDLERS=/app/src/webhandlers/ROOT.handlers
+    depends_on:
+      - sports2020-db

@@ -1,0 +1,988 @@
+openapi: 3.0.3
+info:
+  title: Dynamic Data Masking API
+  description: |
+    Complete REST API for OpenEdge Dynamic Data Masking (DDM) operations using OpenEdge.DataAdmin services.
+    This API provides comprehensive DDM functionality including field masking configuration, authorization tag management, role management, and user administration.
+  version: 1.0.0
+  contact:
+    name: Progress Developer
+    email: developer@progress.com
+  license:
+    name: Progress Software License
+    url: https://www.progress.com/legal
+
+servers:
+  - url: http://localhost:8080/api/masking
+    description: Development server
+  - url: https://your-domain.com/api/masking
+    description: Production server
+
+tags:
+  - name: Health
+    description: API health and status endpoints
+  - name: Field Operations
+    description: Field-level masking operations
+  - name: Authorization Tags
+    description: Authorization tag management
+  - name: Role Management
+    description: Role creation and management
+  - name: User Management
+    description: User administration
+  - name: Information Retrieval
+    description: Get information about DDM configurations and grants
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check the health status of the DDM API service
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+
+  /grant-security-admin:
+    get:
+      tags:
+        - User Management
+      summary: Grant security administrator privileges
+      description: Grants security admin privileges to a user
+      operationId: grantSecurityAdmin
+      parameters:
+        - name: userName
+          in: query
+          required: true
+          description: Name of the user to grant security admin
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Security admin granted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantSecurityAdminResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /associate-auth-tag-role:
+    get:
+      tags:
+        - Authorization Tags
+      summary: Reassign an authorization tag to a different role
+      description: Associate (reassign) an authorization tag to a new role
+      operationId: associateAuthTagRole
+      parameters:
+        - name: currentRole
+          in: query
+          required: true
+          description: Current role name
+          schema:
+            type: string
+        - name: authTagName
+          in: query
+          required: true
+          description: Authorization tag name
+          schema:
+            type: string
+        - name: newRole
+          in: query
+          required: true
+          description: New role name to associate with the authorization tag
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authorization tag reassigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssociateAuthTagRoleResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /role-auth-tags:
+    get:
+      tags:
+        - Role Management
+      summary: List authorization tags for a role
+      description: Retrieve all authorization tags associated with the given role
+      operationId: getRoleAuthTags
+      parameters:
+        - name: roleName
+          in: query
+          required: true
+          description: Name of the role
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authorization tags retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleAuthTagsResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /configure-field:
+    post:
+      tags:
+        - Field Operations
+      summary: Configure field masking
+      description: High-level field masking configuration with masking type and value
+      operationId: configureField
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigureFieldRequest'
+      responses:
+        '200':
+          description: Field masking configured successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigureFieldResponse'
+        '400':
+          description: Invalid request or configuration failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /unset-mask:
+    post:
+      tags:
+        - Field Operations
+      summary: Unset field mask
+      description: Remove mask configuration from a specific field
+      operationId: unsetMask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldRequest'
+      responses:
+        '200':
+          description: Mask unset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '400':
+          description: Invalid request or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /unset-auth-tag:
+    post:
+      tags:
+        - Field Operations
+      summary: Unset authorization tag
+      description: Remove authorization tag from a specific field
+      operationId: unsetAuthTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldRequest'
+      responses:
+        '200':
+          description: Authorization tag unset successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '400':
+          description: Invalid request or operation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /create-auth-tag:
+    post:
+      tags:
+        - Authorization Tags
+      summary: Create authorization tag
+      description: Create a new authorization tag in the specified domain
+      operationId: createAuthTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthTagRequest'
+      responses:
+        '201':
+          description: Authorization tag created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTagResponse'
+        '400':
+          description: Invalid request or creation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /update-auth-tag:
+    post:
+      tags:
+        - Authorization Tags
+      summary: Update authorization tag
+      description: Update an existing authorization tag with a new name
+      operationId: updateAuthTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAuthTagRequest'
+      responses:
+        '200':
+          description: Authorization tag updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateAuthTagResponse'
+        '400':
+          description: Invalid request or update failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /delete-auth-tag:
+    delete:
+      tags:
+        - Authorization Tags
+      summary: Delete authorization tag
+      description: Delete an authorization tag from the specified domain
+      operationId: deleteAuthTag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthTagRequest'
+      responses:
+        '200':
+          description: Authorization tag deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTagResponse'
+        '400':
+          description: Invalid request or deletion failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /create-role:
+    post:
+      tags:
+        - Role Management
+      summary: Create role
+      description: Create a new security role
+      operationId: createRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+      responses:
+        '201':
+          description: Role created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          description: Invalid request or creation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /delete-role:
+    delete:
+      tags:
+        - Role Management
+      summary: Delete role
+      description: Delete an existing security role
+      operationId: deleteRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleRequest'
+      responses:
+        '200':
+          description: Role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          description: Invalid request or deletion failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /grant-role:
+    post:
+      tags:
+        - Role Management
+      summary: Grant role to user
+      description: Grant a security role to a specific user
+      operationId: grantRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantRoleRequest'
+      responses:
+        '200':
+          description: Role granted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantRoleResponse'
+        '400':
+          description: Invalid request or grant failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /delete-granted-role:
+    delete:
+      tags:
+        - Role Management
+      summary: Delete granted role
+      description: Remove a granted role using grant ID
+      operationId: deleteGrantedRole
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteGrantedRoleRequest'
+      responses:
+        '200':
+          description: Granted role deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteGrantedRoleResponse'
+        '400':
+          description: Invalid request or deletion failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /create-user:
+    post:
+      tags:
+        - User Management
+      summary: Create user
+      description: Create a new user with username and password
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request or creation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /delete-user:
+    delete:
+      tags:
+        - User Management
+      summary: Delete user
+      description: Delete an existing user
+      operationId: deleteUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRequest'
+      responses:
+        '200':
+          description: User deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Invalid request or deletion failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+  /mask-and-auth-tag:
+    get:
+      tags:
+        - Information Retrieval
+      summary: Get mask and authorization tag for field
+      description: Retrieve mask and authorization tag information for a specific field
+      operationId: getMaskAndAuthTag
+      parameters:
+        - name: tableName
+          in: query
+          required: true
+          description: Name of the table
+          schema:
+            type: string
+        - name: fieldName
+          in: query
+          required: true
+          description: Name of the field
+          schema:
+            type: string
+        - name: userName
+          in: query
+          required: false
+          description: Name of the user (optional)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Mask and authorization tag information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MaskAndAuthTagResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth-tag-role:
+    get:
+      tags:
+        - Information Retrieval
+      summary: Get authorization tag and associated role
+      description: Retrieve authorization tag and its associated role information
+      operationId: getAuthTagRole
+      parameters:
+        - name: domainName
+          in: query
+          required: true
+          description: Name of the domain
+          schema:
+            type: string
+        - name: authTagName
+          in: query
+          required: true
+          description: Name of the authorization tag
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Authorization tag and role information retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTagRoleResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user-role-grants:
+    get:
+      tags:
+        - Information Retrieval
+      summary: Get user role grants
+      description: Retrieve all role grants for a specific user
+      operationId: getUserRoleGrants
+      parameters:
+        - name: userName
+          in: query
+          required: true
+          description: Name of the user
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User role grants retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRoleGrantsResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /ddm-config:
+    get:
+      tags:
+        - Information Retrieval
+      summary: Get DDM configuration
+      description: Get DDM configuration for a specific field (limited functionality)
+      operationId: getDDMConfig
+      parameters:
+        - name: tableName
+          in: query
+          required: true
+          description: Name of the table
+          schema:
+            type: string
+        - name: fieldName
+          in: query
+          required: true
+          description: Name of the field
+          schema:
+            type: string
+        - name: userName
+          in: query
+          required: false
+          description: Name of the user (optional)
+          schema:
+            type: string
+      responses:
+        '501':
+          description: Not implemented - OpenEdge 12.8 doesn't provide direct getter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
+        service:
+          type: string
+          example: "Dynamic Data Masking API"
+        version:
+          type: string
+          example: "1.0"
+        database:
+          type: string
+          example: "sports2020"
+        timestamp:
+          type: string
+          format: date-time
+
+
+    ConfigureFieldRequest:
+      type: object
+      required:
+        - tableName
+        - fieldName
+        - maskingType
+        - maskingValue
+        - authTag
+      properties:
+        tableName:
+          type: string
+          description: Name of the table
+          example: "Customer"
+        fieldName:
+          type: string
+          description: Name of the field
+          example: "Name"
+        maskingType:
+          type: string
+          description: Type of masking
+          enum: [FULL, PARTIAL, CONDITIONAL]
+          example: "PARTIAL"
+        maskingValue:
+          type: string
+          description: |
+            Mask format string. Available configurations:
+            - D — Default mask provided by clients. Example: `D:`
+            - N — Null mask for any data type. Example: `N:`
+            - L — Literal mask for any data type except RAW and LOGICAL, if compatible with the field's data type. Example: `L:MASKED`
+            - P — Partial mask for character data type only, `P:start,maskChar,count`. Example: `P:0,X,4`
+
+            Note: The mask transformation must preserve the original value's data type. For example, a numeric value such as `1234` cannot be converted to a non-numeric value such as `XXXX`.
+          example: "D:"
+        authTag:
+          type: string
+          description: |
+            Authorization tag. Must begin with `#DDM_See_` (case-insensitive), be at most 64 characters total,
+            contain only A-Z, a-z, 0-9, and these special characters: `_ . - # $ % &`. No spaces allowed.
+            Must include non-empty content after the required prefix.
+          example: "#DDM_See_PII"
+
+    ConfigureFieldResponse:
+      type: object
+      properties:
+        tableName:
+          type: string
+        fieldName:
+          type: string
+        maskingType:
+          type: string
+        maskingValue:
+          type: string
+        authTag:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    FieldRequest:
+      type: object
+      required:
+        - tableName
+        - fieldName
+      properties:
+        tableName:
+          type: string
+          description: Name of the table
+          example: "Customer"
+        fieldName:
+          type: string
+          description: Name of the field
+          example: "CustNum"
+
+    AuthTagRequest:
+      type: object
+      required:
+        - domainName
+        - authTagName
+      properties:
+        domainName:
+          type: string
+          description: Name of the domain
+          example: "TestDomain"
+        authTagName:
+          type: string
+          description: |
+            Name of the authorization tag. Must begin with `#DDM_See_` (case-insensitive), be at most 64 characters total,
+            contain only A-Z, a-z, 0-9, and these special characters: `_ . - # $ % &`. No spaces allowed.
+            Must include non-empty content after the required prefix.
+          example: "#DDM_See_CONFIDENTIAL"
+
+    AuthTagResponse:
+      type: object
+      properties:
+        domainName:
+          type: string
+        authTagName:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    UpdateAuthTagRequest:
+      type: object
+      required:
+        - domainName
+        - authTagName
+        - newName
+      properties:
+        domainName:
+          type: string
+          description: Name of the domain
+          example: "TestDomain"
+        authTagName:
+          type: string
+          description: |
+            Current name of the authorization tag. Must follow the DDM authorization tag format requirements.
+          example: "#DDM_See_CONFIDENTIAL"
+        newName:
+          type: string
+          description: |
+            New name for the authorization tag. Must follow the DDM authorization tag format requirements.
+          example: "#DDM_See_TopSecret"
+
+    UpdateAuthTagResponse:
+      type: object
+      properties:
+        domainName:
+          type: string
+        authTagName:
+          type: string
+        newName:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    RoleRequest:
+      type: object
+      required:
+        - roleName
+      properties:
+        roleName:
+          type: string
+          description: Name of the role
+          example: "DataAnalyst"
+
+    RoleResponse:
+      type: object
+      properties:
+        roleName:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    GrantRoleRequest:
+      type: object
+      required:
+        - userName
+        - roleName
+      properties:
+        userName:
+          type: string
+          description: Name of the user
+          example: "testuser"
+        roleName:
+          type: string
+          description: Name of the role to grant
+          example: "DataAnalyst"
+
+    GrantRoleResponse:
+      type: object
+      properties:
+        userName:
+          type: string
+        roleName:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    DeleteGrantedRoleRequest:
+      type: object
+      required:
+        - grantId
+      properties:
+        grantId:
+          type: string
+          description: ID of the granted role
+          example: "grant123"
+
+    DeleteGrantedRoleResponse:
+      type: object
+      properties:
+        grantId:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    CreateUserRequest:
+      type: object
+      required:
+        - userName
+        - password
+      properties:
+        userName:
+          type: string
+          description: Username for the new user
+          example: "testuser"
+        password:
+          type: string
+          description: Password for the new user
+          example: "testpass123"
+
+    UserRequest:
+      type: object
+      required:
+        - userName
+      properties:
+        userName:
+          type: string
+          description: Name of the user
+          example: "testuser"
+
+    UserResponse:
+      type: object
+      properties:
+        userName:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    MaskAndAuthTagResponse:
+      type: object
+      properties:
+        tableName:
+          type: string
+        fieldName:
+          type: string
+        userName:
+          type: string
+        result:
+          type: string
+          description: Mask and authorization tag information
+        success:
+          type: boolean
+
+    AuthTagRoleResponse:
+      type: object
+      properties:
+        domainName:
+          type: string
+        authTagName:
+          type: string
+        result:
+          type: string
+          description: Authorization tag and role information
+        success:
+          type: boolean
+
+    UserRoleGrantsResponse:
+      type: object
+      properties:
+        userName:
+          type: string
+        result:
+          type: string
+          description: User role grants information
+        success:
+          type: boolean
+
+    OperationResponse:
+      type: object
+      properties:
+        tableName:
+          type: string
+        fieldName:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        success:
+          type: boolean
+          example: false
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          description: API path that caused the error
+
+    GrantSecurityAdminResponse:
+      type: object
+      properties:
+        userName:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    AssociateAuthTagRoleResponse:
+      type: object
+      properties:
+        currentRole:
+          type: string
+        authTagName:
+          type: string
+        newRole:
+          type: string
+        success:
+          type: boolean
+        message:
+          type: string
+
+    RoleAuthTagsResponse:
+      type: object
+      properties:
+        roleName:
+          type: string
+        result:
+          type: string
+          description: Serialized list of authorization tags
+        success:
+          type: boolean
+
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Basic HTTP authentication
+
+security:
+  - basicAuth: []
