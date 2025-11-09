@@ -109,10 +109,14 @@ The following components should be automatically configured:
 
 ### Step 5: Enable Dynamic Data Masking (required)
 
-**Important**: You must enable DDM on each target database **before** you can start administering the DDM configuration.
+**Important**: DDM setup follows a specific sequence:
+
+1. **Enable DDM** - Must be done first, before any configuration
+2. **Configure DDM** - Set up masking rules, authorization tags, etc.
+3. **Activate DDM** - Final step to activate the configured rules
 
 ```bash
-# Step 1: Enable DDM
+# Step 1: Enable DDM (required before configuration)
 proutil /path/to/your.db -C enableddm
 ```
 
@@ -123,8 +127,10 @@ Feature Management: The feature Dynamic Data Masking has been enabled. (11165)
 The DDM feature enable has completed successfully. (20695)
 ```
 
+After enabling DDM, you can configure your masking rules using the REST API or Web UI (see Quick Start Guide below).
+
 ```bash
-# Step 2: Activate DDM
+# Step 2: Activate DDM (run after configuration is complete)
 proutil /path/to/your.db -C activateddm
 ```
 
@@ -138,7 +144,7 @@ The DDM feature activate has completed successfully. (20696)
 Notes:
 - Replace `/path/to/your.db` with the absolute path to your database (for example, a copy of `sports2020.db`).
 - DDM requires a valid OpenEdge license that includes Dynamic Data Masking (Progress OEAS).
-- Both `enableddm` and `activateddm` commands must be run before administering DDM configuration.
+- **Sequence matters**: Run `enableddm` → configure DDM rules → run `activateddm`.
 - Run these commands on Linux inside your OpenEdge environment/container.
 
 ## 🚀 Quick Start Guide
