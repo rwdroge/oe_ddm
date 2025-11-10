@@ -48,6 +48,200 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
 
+  /tables:
+    get:
+      tags:
+        - Information Retrieval
+      summary: List all user tables
+      description: Retrieve all user tables in the connected database
+      operationId: getTables
+      responses:
+        '200':
+          description: Tables retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TablesResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /fields:
+    get:
+      tags:
+        - Information Retrieval
+      summary: List fields for a table
+      description: Retrieve all fields for a specific table
+      operationId: getFields
+      parameters:
+        - name: tableName
+          in: query
+          required: true
+          description: Name of the table
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Fields retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldsResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /table-configs:
+    get:
+      tags:
+        - Information Retrieval
+      summary: Get all field configurations for a table
+      description: Retrieve DDM configuration (mask and auth tag) for all fields in a table
+      operationId: getTableConfigs
+      parameters:
+        - name: tableName
+          in: query
+          required: true
+          description: Name of the table
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Table configurations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableConfigsResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /roles:
+    get:
+      tags:
+        - Role Management
+      summary: List all roles
+      description: Retrieve all security roles in the database
+      operationId: getRoles
+      responses:
+        '200':
+          description: Roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolesResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /roles-with-counts:
+    get:
+      tags:
+        - Role Management
+      summary: List roles with user counts
+      description: Retrieve all roles with the count of users granted each role
+      operationId: getRolesWithCounts
+      responses:
+        '200':
+          description: Roles with counts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RolesWithCountsResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users:
+    get:
+      tags:
+        - User Management
+      summary: List all users
+      description: Retrieve all users in the database
+      operationId: getUsers
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth-tags:
+    get:
+      tags:
+        - Authorization Tags
+      summary: List all authorization tags
+      description: Retrieve all authorization tags in the database
+      operationId: getAuthTags
+      responses:
+        '200':
+          description: Authorization tags retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTagsResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth-tags-with-roles:
+    get:
+      tags:
+        - Authorization Tags
+      summary: List authorization tags with associated roles
+      description: Retrieve all authorization tags with their associated role information
+      operationId: getAuthTagsWithRoles
+      responses:
+        '200':
+          description: Authorization tags with roles retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTagsWithRolesResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 
   /grant-security-admin:
     get:
@@ -82,7 +276,7 @@ paths:
       tags:
         - Authorization Tags
       summary: Reassign an authorization tag to a different role
-      description: Associate (reassign) an authorization tag to a new role
+      description: Associate (reassign) an authorization tag to a new role using query parameters
       operationId: associateAuthTagRole
       parameters:
         - name: currentRole
@@ -103,6 +297,31 @@ paths:
           description: New role name to associate with the authorization tag
           schema:
             type: string
+      responses:
+        '200':
+          description: Authorization tag reassigned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssociateAuthTagRoleResponse'
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Authorization Tags
+      summary: Reassign an authorization tag to a different role
+      description: Associate (reassign) an authorization tag to a new role using request body
+      operationId: associateAuthTagRolePost
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssociateAuthTagRoleRequest'
       responses:
         '200':
           description: Authorization tag reassigned successfully
@@ -383,6 +602,39 @@ paths:
                 $ref: '#/components/schemas/GrantRoleResponse'
         '400':
           description: Invalid request or grant failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /grant-roles:
+    post:
+      tags:
+        - Role Management
+      summary: Grant role to multiple users
+      description: Grant a single security role to multiple users in a batch operation
+      operationId: grantRoles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantRolesRequest'
+      responses:
+        '200':
+          description: Role granted to all users successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantRolesResponse'
+        '207':
+          description: Partial success - role granted to some users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GrantRolesResponse'
+        '400':
+          description: Invalid request or grant failed for all users
           content:
             application/json:
               schema:
@@ -953,6 +1205,26 @@ components:
         message:
           type: string
 
+    AssociateAuthTagRoleRequest:
+      type: object
+      required:
+        - currentRoleName
+        - authTagName
+        - newRoleName
+      properties:
+        currentRoleName:
+          type: string
+          description: Current role name
+          example: "OldRole"
+        authTagName:
+          type: string
+          description: Authorization tag name
+          example: "#DDM_See_PII"
+        newRoleName:
+          type: string
+          description: New role name to associate with the authorization tag
+          example: "NewRole"
+
     AssociateAuthTagRoleResponse:
       type: object
       properties:
@@ -977,6 +1249,143 @@ components:
           description: Serialized list of authorization tags
         success:
           type: boolean
+
+    TablesResponse:
+      type: object
+      properties:
+        tables:
+          type: array
+          items:
+            type: string
+          description: List of table names
+        success:
+          type: boolean
+
+    FieldsResponse:
+      type: object
+      properties:
+        tableName:
+          type: string
+        fields:
+          type: array
+          items:
+            type: string
+          description: List of field names
+        fieldTypes:
+          type: object
+          additionalProperties:
+            type: string
+          description: Map of field names to their data types
+        success:
+          type: boolean
+
+    TableConfigsResponse:
+      type: object
+      properties:
+        tableName:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              fieldName:
+                type: string
+              maskValue:
+                type: string
+              authTag:
+                type: string
+              result:
+                type: string
+        success:
+          type: boolean
+
+    RolesResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Serialized list of roles
+        success:
+          type: boolean
+
+    RolesWithCountsResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Serialized list of roles with user counts
+        success:
+          type: boolean
+
+    UsersResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Serialized list of users
+        success:
+          type: boolean
+
+    AuthTagsResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Serialized list of authorization tags
+        success:
+          type: boolean
+
+    AuthTagsWithRolesResponse:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Serialized list of authorization tags with associated roles
+        success:
+          type: boolean
+
+    GrantRolesRequest:
+      type: object
+      required:
+        - roleName
+        - userNames
+      properties:
+        roleName:
+          type: string
+          description: Name of the role to grant
+          example: "DataAnalyst"
+        userNames:
+          type: array
+          items:
+            type: string
+          description: List of usernames to grant the role to
+          example: ["user1", "user2", "user3"]
+
+    GrantRolesResponse:
+      type: object
+      properties:
+        roleName:
+          type: string
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              userName:
+                type: string
+              roleName:
+                type: string
+              success:
+                type: boolean
+              message:
+                type: string
+              error:
+                type: string
+        success:
+          type: boolean
+        message:
+          type: string
 
   securitySchemes:
     basicAuth:
